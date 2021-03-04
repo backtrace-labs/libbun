@@ -1,0 +1,3 @@
+add_library(poison_malloc SHARED poison.c)
+set_target_properties(poison_malloc PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(poison_malloc PUBLIC dl)
