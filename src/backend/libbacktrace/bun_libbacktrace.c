@@ -4,7 +4,7 @@
 #include <string.h>
 
 #include "bun_libbacktrace.h"
-#include "bun_internal.h"
+#include "../../bun_internal.h"
 
 #include <libbacktrace/backtrace.h>
 #include <libbacktrace/backtrace-supported.h>
@@ -22,10 +22,10 @@ static void error_callback(void *data, const char *msg, int errnum);
 static void syminfo_callback(void *data, uintptr_t pc, const char *symname, uintptr_t symval, uintptr_t symsize);
 static int full_callback(void *data, uintptr_t pc, const char *filename, int lineno, const char *function);
 
-bun_handle_t initialize_libbacktrace(struct bun_config *config)
+bun_t *_bun_initialize_libbacktrace(struct bun_config *config)
 {
     (void *) config;
-    bun_handle_t handle = calloc(1, sizeof(struct bun_handle));
+    bun_t *handle = calloc(1, sizeof(struct bun_handle));
 
     if (handle == NULL)
         return NULL;
@@ -95,6 +95,8 @@ int full_callback(void *data, uintptr_t pc, const char *filename, int lineno, co
     ctx->frames_written++;
     ctx->frames_left--;
 
+    frame->line_no = lineno;
+
     if (filename != NULL) {
         strncpy(frame->filename, filename, sizeof(frame->filename) - 1);
     }
@@ -102,7 +104,7 @@ int full_callback(void *data, uintptr_t pc, const char *filename, int lineno, co
     if (function) {
         strncpy(frame->symbol, function, sizeof(frame->symbol) - 1);
     } else {
-        backtrace_syminfo (data, pc, syminfo_callback, error_callback, data);
+        backtrace_syminfo(data, pc, syminfo_callback, error_callback, data);
     }
     return 0;
 }

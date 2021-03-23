@@ -41,13 +41,13 @@ enum bun_unwind_backend
 {
 #if defined(BUN_LIBUNWIND_ENABLED)
     BUN_LIBUNWIND = 0,
-#endif //BUN_LIBUNWIND_ENABLED
+#endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBBACKTRACE_ENABLED)
     BUN_LIBBACKTRACE = 1,
-#endif //BUN_LIBBACKTRACE_ENABLED
+#endif /* BUN_LIBBACKTRACE_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
     BUN_LIBUNWINDSTACK = 2,
-#endif //BUN_LIBUNWINDSTACK_ENABLED
+#endif /* BUN_LIBUNWINDSTACK_ENABLED */
     BUN_EMPTY_UNWIND_BACKEND = -1
 };
 
@@ -63,21 +63,33 @@ struct bun_config
     size_t buffer_size;
     void *buffer;
 };
+#define BUN_CONFIG_INITIALIZE { BUN_EMPTY_UNWIND_BACKEND, 0, NULL }
 
 /*
  * Opaque handle for the unwinding object.
  */
 struct bun_handle;
-typedef struct bun_handle *bun_handle_t;
+typedef struct bun_handle bun_t;
 
 /*
  * The initialization function. NULL is returned on failure
  */
-bun_handle_t bun_initialize(struct bun_config*);
+bun_t *bun_create(struct bun_config *);
 /*
  * The de-initialization function.
  */
-void bun_free(bun_handle_t);
+void bun_destroy(bun_t *);
+
+/*
+ * Encodes the result of the unwind function. BUN_UNWIND_PARTIAL is currently
+ * unused.
+ */
+enum bun_unwind_result
+{
+    BUN_UNWIND_FAILURE,
+    BUN_UNWIND_SUCCESS,
+    BUN_UNWIND_PARTIAL
+};
 
 /*
  * This function unwinds from the current context. The result is stored into the
@@ -85,7 +97,7 @@ void bun_free(bun_handle_t);
  * second and third arguments, they're set with the buffer addres and the
  * actual written payload size, which can be less than the buffer size
  */
-bool bun_unwind(bun_handle_t, void **, size_t *);
+enum bun_unwind_result bun_unwind(bun_t *, void **, size_t *);
 
 /*
  * This function registers signal handlers for the following signals:
@@ -95,7 +107,7 @@ bool bun_unwind(bun_handle_t, void **, size_t *);
  * call, they're reregistered and the signal is reraised to invoke the previous
  * handler.
  */
-bool bun_register_signal_handers(bun_handle_t, void(*)(int));
+bool bun_register_signal_handers(bun_t *, void(*)(int));
 
 #ifdef __cplusplus
 }

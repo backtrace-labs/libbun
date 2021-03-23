@@ -7,17 +7,17 @@
 #include <bun/bun.h>
 
 #include "bun_libunwind.h"
-#include "bun_internal.h"
+#include "../../bun_internal.h"
 
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
 static size_t libunwind_unwind(void *, void *, size_t);
 
-bun_handle_t initialize_libunwind(struct bun_config *config)
+bun_t *_bun_initialize_libunwind(struct bun_config *config)
 {
     (void *)config;
-    bun_handle_t handle = calloc(1, sizeof(struct bun_handle));
+    bun_t *handle = calloc(1, sizeof(struct bun_handle));
 
     if (handle == NULL)
         return NULL;

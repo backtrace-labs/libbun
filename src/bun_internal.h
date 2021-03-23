@@ -29,6 +29,7 @@ struct bun_frame
     uint64_t addr;
     char symbol[40];
     char filename[216];
+    size_t line_no;
 };
 
 struct bun_payload

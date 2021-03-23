@@ -16,8 +16,8 @@ if(LIBBACKTRACE_ENABLED)
     target_include_directories(bun PRIVATE /home/pzakrzewski/csu)
     target_link_libraries(bun PUBLIC backtrace)
     list(APPEND BUNWIND_SOURCES
-        bun_libbacktrace.c
-        bun_libbacktrace.h
+        backend/libbacktrace/bun_libbacktrace.c
+        backend/libbacktrace/bun_libbacktrace.h
     )
 endif()
 
@@ -29,8 +29,8 @@ if(LIBUNWIND_ENABLED)
     target_include_directories(bun PRIVATE /home/pzakrzewski/csu)
     target_link_libraries(bun PUBLIC unwind)
     list(APPEND BUNWIND_SOURCES
-        bun_libunwind.h
-        bun_libunwind.c
+        backend/libunwind/bun_libunwind.h
+        backend/libunwind/bun_libunwind.c
     )
 endif()
 

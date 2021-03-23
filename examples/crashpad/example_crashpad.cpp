@@ -103,7 +103,7 @@ startCrashHandler()
     );
 }
 
-bun_handle_t handle;
+bun_t *handle;
 static void my_sighandler(int)
 {
     void* buf;
@@ -121,7 +121,7 @@ int main()
     cfg.unwind_backend = BUN_LIBBACKTRACE;
     cfg.buffer_size = 8172;
     cfg.buffer = calloc(1, cfg.buffer_size);
-    handle = bun_initialize(&cfg);
+    handle = bun_create(&cfg);
 
     std::cerr << startCrashHandler() << '\n';
     std::cerr << bun_register_signal_handers(handle, &my_sighandler) << '\n';
@@ -131,5 +131,5 @@ int main()
         ->AddUserDataMinidumpStream(55557, buf, sizeof(buf));
 
     memset((void*)(intptr_t)4, 123, 1);
-    bun_free(handle);
+    bun_destroy(handle);
 }

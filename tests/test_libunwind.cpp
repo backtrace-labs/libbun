@@ -22,6 +22,6 @@ TEST(libunwind, initialize) {
     cfg.buffer_size = sizeof(buf);
     cfg.buffer = buf;
 
-    bun_handle_t handle = bun_initialize(&cfg);
+    bun_t *handle = bun_create(&cfg);
     ASSERT_TRUE(handle);
 }
