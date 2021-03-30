@@ -1,7 +1,7 @@
 list(APPEND BUNWIND_SOURCES
-../include/bun/bun.h
-bun.c
-bun_signal.c
+    ../include/bun/bun.h
+    bun.c
+    bun_signal.c
 )
 
 add_library(bun STATIC)
@@ -31,6 +31,19 @@ if(LIBUNWIND_ENABLED)
     list(APPEND BUNWIND_SOURCES
         backend/libunwind/bun_libunwind.h
         backend/libunwind/bun_libunwind.c
+    )
+endif()
+
+#libunwindstack
+# TEMPORARY UNTIL FindUnwindstack.cmake IS CREATED
+if(LIBUNWINDSTACK_ENABLED)
+    set(LIBUNWINDSTACK_FOUND TRUE)
+    target_include_directories(bun PRIVATE ../external/libunwindstack-ndk/include)
+    target_compile_definitions(bun PUBLIC BUN_LIBUNWINDSTACK_ENABLED)
+    target_link_libraries(bun PRIVATE unwindstack)
+    list(APPEND BUNWIND_SOURCES
+        backend/libunwindstack/bun_libunwindstack.h
+        backend/libunwindstack/bun_libunwindstack.cpp
     )
 endif()
 

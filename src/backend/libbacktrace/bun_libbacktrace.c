@@ -69,7 +69,6 @@ size_t libbacktrace_unwind(void *ctx, void *dest, size_t buf_size)
     return hdr->size;
 }
 
-
 void error_callback(void *data, const char *msg, int errnum)
 {
 }

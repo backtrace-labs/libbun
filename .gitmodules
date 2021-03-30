@@ -1,0 +1,3 @@
+[submodule "external/libunwindstack-ndk"]
+	path = external/libunwindstack-ndk
+	url = git@github.com:KrzaQ/libunwindstack-ndk.git

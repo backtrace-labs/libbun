@@ -10,6 +10,9 @@
 #if defined(BUN_LIBUNWIND_ENABLED)
 #include "backend/libunwind/bun_libunwind.h"
 #endif /* BUN_LIBUNWIND_ENABLED */
+#if defined(BUN_LIBUNWINDSTACK_ENABLED)
+#include "backend/libunwindstack/bun_libunwindstack.h"
+#endif /* BUN_LIBUNWINDSTACK_ENABLED */
 
 bun_t *bun_create(struct bun_config* config)
 {
@@ -26,7 +29,7 @@ bun_t *bun_create(struct bun_config* config)
 #endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
         case BUN_LIBUNWINDSTACK:
-            return NULL;
+            return _bun_initialize_libunwindstack(config);
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
         default:
             return NULL;

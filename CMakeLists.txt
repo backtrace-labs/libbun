@@ -5,11 +5,17 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
-set(LIBBACKTRACE_ENABLED TRUE)
-set(LIBUNWIND_ENABLED TRUE)
+set(LIBBACKTRACE_ENABLED FALSE)
+set(LIBUNWIND_ENABLED FALSE)
+set(LIBUNWINDSTACK_ENABLED TRUE)
 
 if(BUILD_EXAMPLES)
     add_subdirectory(examples)
+endif()
+
+
+if(LIBUNWINDSTACK_ENABLED)
+    add_subdirectory("external/libunwindstack-ndk/cmake/")
 endif()
 
 add_subdirectory(src)
