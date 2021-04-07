@@ -3,8 +3,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <bun/stream.h>
+
 #include "bun_libunwindstack.h"
-#include "../../bun_internal.h"
 
 #include <unwindstack/Maps.h>
 #include <unwindstack/Memory.h>
@@ -15,14 +16,26 @@
 extern "C"
 bun_t *_bun_initialize_libunwindstack(struct bun_config *config)
 {
-    (void)config;
-    return NULL;
+    bun_t *handle = calloc(1, sizeof(struct bun_handle));
+
+    if (handle == NULL)
+        return NULL;
+
+    handle->unwind_function = libbacktrace_unwind;
+    handle->unwind_buffer = config->buffer;
+    handle->unwind_buffer_size = config->buffer_size;
+    handle->arch = config->arch;
+    return handle;
 }
 
-size_t libbacktrace_unwind(void *ctx, void *dest, size_t buf_size)
+size_t libbacktrace_unwind(void *ctx)
 {
-    (void)ctx;
-    assert(ctx == NULL);
+    struct bun_handle *handle = ctx;
+    struct bun_payload_header *hdr = handle->unwind_buffer;
+    struct bun_writer_reader *writer;
+
+    writer = bun_create_writer(handle->unwind_buffer,
+        handle->unwind_buffer_size, handle->arch);
 
     std::unique_ptr<unwindstack::Regs> registers;
     unwindstack::LocalMaps local_maps;
@@ -43,32 +56,23 @@ size_t libbacktrace_unwind(void *ctx, void *dest, size_t buf_size)
     };
     unwinder.Unwind();
 
-    auto hdr = static_cast<bun_payload_header *>(dest);
-    hdr->architecture = BUN_ARCH_X86_64;
-    hdr->version = 1;
-
     bun_frame *frame_ptr = reinterpret_cast<bun_frame *>(static_cast<char *>(dest) +
         sizeof(bun_payload_header));
     char *end_of_buffer = static_cast<char *>(dest) + buf_size;
 
     for (const auto &frame : unwinder.frames()) {
-        frame_ptr->addr = frame.function_offset;
-        strncpy(frame_ptr->symbol, frame.function_name.c_str(),
-            sizeof(frame_ptr->symbol)-1);
-        *std::rbegin(frame_ptr->symbol) = '\0';
-        strncpy(frame_ptr->filename, frame.map_name.c_str(),
-            sizeof(frame_ptr->filename)-1);
-        *std::rbegin(frame_ptr->filename) = '\0';
-        frame_ptr->line_no = frame.function_offset;
-        frame_ptr++;
-        auto offset = reinterpret_cast<char *>(frame_ptr) -
-            static_cast<char *>(dest);
-        if (offset >= buf_size)
-            break;
+        struct bun_frame bun_frame;
+        memset(&bun_frame, 0, sizeof(bun_frame));
+
+        bun_frame.addr = pc;
+        bun_frame.symbol = frame.function_name.c_str();
+        bun_frame.symbol_length = frame.function_name.size();
+        bun_frame.filename = frame.map_name.c_str();
+        bun_frame.filename_length = frame.map_name.size();
+        bun_frame.line_no = frame.function_offset;
+
+        bun_frame_write(writer, &frame);
     }
-
-    size_t written = reinterpret_cast<char *>(frame_ptr) -
-        static_cast<char *>(dest);
-
-    return written;
+    bun_free_writer_reader(writer);
+    return hdr->size;
 }

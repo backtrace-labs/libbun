@@ -3,24 +3,27 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <bun/stream.h>
+
 #include "bun_libbacktrace.h"
-#include "../../bun_internal.h"
 
 #include <libbacktrace/backtrace.h>
 #include <libbacktrace/backtrace-supported.h>
 
+#define LIBBACKTRACE_MAX_SYMBOL_NAME 256
+
 struct backtrace_context
 {
-    size_t frames_written;
-    size_t frames_left;
-    void *data;
+    struct backtrace_state *state;
+    struct bun_writer_reader *writer;
 };
 
-static size_t libbacktrace_unwind(void *, void *, size_t);
-
+static size_t libbacktrace_unwind(void *);
 static void error_callback(void *data, const char *msg, int errnum);
-static void syminfo_callback(void *data, uintptr_t pc, const char *symname, uintptr_t symval, uintptr_t symsize);
-static int full_callback(void *data, uintptr_t pc, const char *filename, int lineno, const char *function);
+static void syminfo_callback(void *data, uintptr_t pc, const char *symname,
+    uintptr_t symval, uintptr_t symsize);
+static int full_callback(void *data, uintptr_t pc, const char *filename,
+    int lineno, const char *function);
 
 bun_t *_bun_initialize_libbacktrace(struct bun_config *config)
 {
@@ -33,13 +36,16 @@ bun_t *_bun_initialize_libbacktrace(struct bun_config *config)
     handle->unwind_function = libbacktrace_unwind;
     handle->unwind_buffer = config->buffer;
     handle->unwind_buffer_size = config->buffer_size;
+    handle->arch = config->arch;
     return handle;
 }
 
-size_t libbacktrace_unwind(void *ctx, void *dest, size_t buf_size)
+size_t libbacktrace_unwind(void *ctx)
 {
-    (void *)ctx;
-    assert(ctx == NULL);
+    struct bun_handle *handle = ctx;
+    struct bun_payload_header *hdr = handle->unwind_buffer;
+
+    assert(ctx != NULL);
 
     struct backtrace_state *state = backtrace_create_state(
         NULL /*argv[0]*/,
@@ -49,23 +55,12 @@ size_t libbacktrace_unwind(void *ctx, void *dest, size_t buf_size)
     
     struct backtrace_context bt_ctx;
 
-    struct bun_payload_header *hdr = dest;
-    hdr->architecture = BUN_ARCH_X86_64;
-    hdr->version = 1;
+    bt_ctx.state = state;
+    bt_ctx.writer = bun_create_writer(handle->unwind_buffer,
+        handle->unwind_buffer_size, handle->arch);
 
-    bt_ctx.data = dest + sizeof(struct bun_payload_header);
-    bt_ctx.frames_written = 0;
-    bt_ctx.frames_left = (buf_size - sizeof(struct bun_payload_header)) /
-        sizeof(struct bun_frame);
-
-    // fprintf(stderr, "%p %lu %lu\n", bt_ctx.data, bt_ctx.frames_left, bt_ctx.frames_written);
-    // backtrace_simple(state, 0, simple_callback, error_callback, &bt_ctx);
     backtrace_full(state, 0, full_callback, error_callback, &bt_ctx);
-    // fprintf(stderr, "%p %lu %lu\n", bt_ctx.data, bt_ctx.frames_left, bt_ctx.frames_written);
-    
-    hdr->size = sizeof(struct bun_payload_header) +
-        bt_ctx.frames_written * sizeof(struct bun_frame);
-
+    bun_free_writer_reader(bt_ctx.writer);
     return hdr->size;
 }
 
@@ -73,37 +68,38 @@ void error_callback(void *data, const char *msg, int errnum)
 {
 }
 
-void syminfo_callback (void *data, uintptr_t pc, const char *symname, uintptr_t symval, uintptr_t symsize)
+void syminfo_callback(void *data, uintptr_t pc, const char *symname,
+    uintptr_t symval, uintptr_t symsize)
 {
-    struct backtrace_context *ctx = data;
-    struct bun_frame *frame = ctx->data;
-    if (symname) {
-        strncpy(frame->symbol, symname, sizeof(frame->symbol) - 1);
-    } else {
+    char *str = data;
+
+    if (symname != NULL) {
+        strncpy(str, symname, LIBBACKTRACE_MAX_SYMBOL_NAME - 1);
+        str[LIBBACKTRACE_MAX_SYMBOL_NAME - 1] = '\0';
     }
 }
 
-int full_callback(void *data, uintptr_t pc, const char *filename, int lineno, const char *function)
+int full_callback(void *data, uintptr_t pc, const char *filename, int lineno,
+    const char *function)
 {
     struct backtrace_context *ctx = data;
-    struct bun_frame *frame = ctx->data;
-    if (ctx->frames_left == 0)
-        return 0;
-    frame->addr = pc;
-    ctx->data += sizeof(struct bun_frame);
-    ctx->frames_written++;
-    ctx->frames_left--;
 
-    frame->line_no = lineno;
+    struct bun_frame frame;
+    memset(&frame, 0, sizeof(frame));
+    frame.addr = (uint64_t)pc;
+    frame.line_no = lineno;
+    frame.symbol = (char *)function;
+    frame.filename = (char *)filename;
 
-    if (filename != NULL) {
-        strncpy(frame->filename, filename, sizeof(frame->filename) - 1);
-    }
-
-    if (function) {
-        strncpy(frame->symbol, function, sizeof(frame->symbol) - 1);
+    if (function == NULL) {
+        bun_frame_write(ctx->writer, &frame);
     } else {
-        backtrace_syminfo(data, pc, syminfo_callback, error_callback, data);
+        char function_name[LIBBACKTRACE_MAX_SYMBOL_NAME] = { '\0' };
+        backtrace_syminfo(ctx->state, pc, syminfo_callback, error_callback,
+            function_name);
+        frame.symbol = function_name;
+        frame.symbol_length = strlen(frame.symbol);
+        bun_frame_write(ctx->writer, &frame);
     }
     return 0;
 }

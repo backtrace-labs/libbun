@@ -1,7 +1,9 @@
 list(APPEND BUNWIND_SOURCES
     ../include/bun/bun.h
+    ../include/bun/stream.h
     bun.c
     bun_signal.c
+    bun_stream.c
 )
 
 add_library(bun STATIC)

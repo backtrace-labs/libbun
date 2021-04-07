@@ -4,34 +4,55 @@
 #include <stdbool.h>
 
 #include <bun/bun.h>
-#include "bun_internal.h"
+#include <bun/stream.h>
 
 struct handler_pair
 {
     struct sigaction current;
     struct sigaction old;
+    void (*overridden_handler)(int);
+    bool overridden;
     bool has_current;
     bool has_old;
 };
 
-struct handler_pair bun_sigsegv;
+static struct handler_pair handlers[32];
+
 bun_t *global_handle;
 
 static void signal_handler(int signum)
 {
-    if (signum == SIGSEGV) {
-        // printf("cur: %p, old: %p\n", bun_sigsegv.current, bun_sigsegv.old);
-        if (bun_sigsegv.has_current == true)
-            bun_sigsegv.current.sa_handler(signum);
-        if (bun_sigsegv.has_old == true &&
-            sigaction(SIGSEGV, &bun_sigsegv.old, NULL) < 0) {
+    struct handler_pair *hp = &handlers[signum];
+    if (hp->overridden == true) {
+        if (hp->has_current == true)
+            hp->overridden_handler(signum);
+        if (hp->has_old == true &&
+            sigaction(signum, &hp->old, NULL) < 0) {
             raise(signum);
         }
-    } else {
     }
 }
 
-bool bun_register_signal_handers(bun_t *handle, void(* new_handler)(int))
+static void
+set_signal_handler(int signum, void(*new_handler)(int))
+{
+    struct handler_pair *hp = &handlers[signum];
+    hp->current.sa_handler = signal_handler;
+    sigemptyset (&hp->current.sa_mask);
+    hp->current.sa_flags = 0;
+    hp->overridden = true;
+    hp->overridden_handler = new_handler;
+
+    if (sigaction(signum, NULL, &hp->old) >= 0) {
+        hp->has_old = true;
+    }
+
+    if (sigaction(signum, &hp->current, NULL) >= 0) {
+        hp->has_current = true;
+    }
+}
+
+bool bun_register_signal_handers(bun_t *handle, void(*new_handler)(int))
 {
     if (handle == NULL)
         return false;
@@ -41,17 +62,10 @@ bool bun_register_signal_handers(bun_t *handle, void(* new_handler)(int))
     
     global_handle = handle;
 
-    bun_sigsegv.current.sa_handler = new_handler;
-    sigemptyset (&bun_sigsegv.current.sa_mask);
-    bun_sigsegv.current.sa_flags = 0;
-
-    if (sigaction(SIGSEGV, NULL, &bun_sigsegv.old) < 0) {
-        bun_sigsegv.has_old = true;
-    }
-
-    if (sigaction(SIGSEGV, &bun_sigsegv.current, NULL) < 0) {
-        bun_sigsegv.has_current = true;
-    }
-
+    set_signal_handler(SIGABRT, new_handler);
+    set_signal_handler(SIGBUS, new_handler);
+    set_signal_handler(SIGSEGV, new_handler);
+    set_signal_handler(SIGILL, new_handler);
+    set_signal_handler(SIGSYS, new_handler);
     return true;
 }

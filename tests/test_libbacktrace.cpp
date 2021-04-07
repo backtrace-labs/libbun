@@ -1,15 +1,18 @@
 #include "gtest/gtest.h"
 
 #include <bun/bun.h>
-#include "../src/bun_internal.h"
+#include <bun/stream.h>
 
 #include <algorithm>
 #include <functional>
 #include <vector>
 #include <string>
 
-// not static on purpose
 int dummy_line;
+/*
+ * This function is not marked static on purpose - we do want the name to appear
+ * in the callstack
+ */
 void dummy_func(std::function<void()> const& f)
 {
     f(); dummy_line = __LINE__;
@@ -22,9 +25,14 @@ TEST(libbacktrace, initialize) {
     cfg.unwind_backend = BUN_LIBBACKTRACE;
     cfg.buffer_size = sizeof(buf);
     cfg.buffer = buf;
+    cfg.arch = BUN_ARCH_X86_64;
 
     bun_t *handle = bun_create(&cfg);
     ASSERT_TRUE(handle);
+
+    ASSERT_EQ(handle->arch, BUN_ARCH_X86_64);
+
+    bun_destroy(handle);
 }
 
 TEST(libbacktrace, unwinding) {
@@ -43,23 +51,20 @@ TEST(libbacktrace, unwinding) {
     ASSERT_TRUE(data);
     ASSERT_NE(size, 0);
 
+    bun_writer_reader *reader = bun_create_reader(data, size);
+
     bun_payload_header *header = reinterpret_cast<bun_payload_header *>(buf.data());
     ASSERT_EQ(header->version, 1);
 
     std::vector<bun_frame> frames;
-    size_t num_frames = (header->size - sizeof(bun_payload_header)) /
-        sizeof(bun_frame);
-    ASSERT_EQ(num_frames * sizeof(bun_frame) + sizeof(bun_payload_header), header->size);
-    frames.resize(num_frames);
-    for (size_t i = 0; i < num_frames; i++) {
-        size_t offset = i * sizeof(bun_frame) + sizeof(bun_payload_header);
-        memcpy(&frames[i], buf.data() + offset, sizeof(bun_frame));
+    bun_frame next_frame;
+
+    while (bun_frame_read(reader, &next_frame)) {
+        frames.push_back(next_frame);
     }
-    fprintf(stderr, "func = %p\n", &dummy_func);
-    for(bun_frame const& f : frames) {
-        fprintf(stderr, "%p %s:%lu %s\n", (void *)f.addr,
-            f.filename, f.line_no, f.symbol);
-    }
+
+    ASSERT_GT(frames.size(), 0);
+
     auto pred = [](bun_frame const& f) {
         return strcmp(f.symbol, "_Z10dummy_funcRKSt8functionIFvvEE") == 0;
     };

@@ -2,8 +2,8 @@
 #include <stdlib.h>
 
 #include <bun/bun.h>
+#include <bun/stream.h>
 
-#include "bun_internal.h"
 #if defined(BUN_LIBBACKTRACE_ENABLED)
 #include "backend/libbacktrace/bun_libbacktrace.h"
 #endif /* BUN_LIBBACKTRACE_ENABLED */
@@ -55,8 +55,7 @@ bun_unwind(bun_t *handle, void **buf, size_t *buf_size)
     if (handle == NULL || handle->unwind_function == NULL)
         return BUN_UNWIND_FAILURE;
 
-    bytes_written = handle->unwind_function(handle->unwinder_context,
-        handle->unwind_buffer, handle->unwind_buffer_size);
+    bytes_written = handle->unwind_function(handle);
     
     if (buf != NULL && buf_size != NULL) {
         *buf = handle->unwind_buffer;

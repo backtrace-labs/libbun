@@ -52,6 +52,19 @@ enum bun_unwind_backend
 };
 
 /*
+ * Enumeration used to determine the target architecture. Currently only used
+ * for informational purposes.
+ */
+enum bun_architecture
+{
+    BUN_ARCH_X86,
+    BUN_ARCH_X86_64,
+    BUN_ARCH_ARM,
+    BUN_ARCH_ARM64,
+    BUN_ARCH_UNKNOWN
+};
+
+/*
  * Configuration structure used to initialize the unwinder. The passed buffer
  * will be used to write frames' data up to `buffer_size` bytes. The library
  * *does not* take ownership of the memory passed, so that it is possible to
@@ -62,8 +75,9 @@ struct bun_config
     enum bun_unwind_backend unwind_backend;
     size_t buffer_size;
     void *buffer;
+    enum bun_architecture arch;
 };
-#define BUN_CONFIG_INITIALIZE { BUN_EMPTY_UNWIND_BACKEND, 0, NULL }
+#define BUN_CONFIG_INITIALIZE { BUN_EMPTY_UNWIND_BACKEND, 0, NULL, BUN_ARCH_UNKNOWN }
 
 /*
  * Opaque handle for the unwinding object.

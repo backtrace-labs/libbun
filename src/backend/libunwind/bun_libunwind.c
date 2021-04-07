@@ -3,31 +3,41 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include <bun/bun.h>
+#include <bun/stream.h>
 
 #include "bun_libunwind.h"
-#include "../../bun_internal.h"
 
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
-static size_t libunwind_unwind(void *, void *, size_t);
+static size_t libunwind_unwind(void *);
 
 bun_t *_bun_initialize_libunwind(struct bun_config *config)
 {
-    (void *)config;
     bun_t *handle = calloc(1, sizeof(struct bun_handle));
 
     if (handle == NULL)
         return NULL;
 
     handle->unwind_function = libunwind_unwind;
+    handle->unwind_buffer = config->buffer;
+    handle->unwind_buffer_size = config->buffer_size;
+    handle->arch = config->arch;
     return handle;
 }
 
-size_t libunwind_unwind(void *ctx, void *dest, size_t buf_size)
+size_t libunwind_unwind(void *ctx)
 {
+    struct bun_handle *handle = ctx;
+    struct bun_payload_header *hdr = handle->unwind_buffer;
+    struct bun_writer_reader *writer;
+
+    writer = bun_create_writer(handle->unwind_buffer,
+        handle->unwind_buffer_size, handle->arch);
+
     unw_cursor_t cursor;
     unw_context_t context;
 
@@ -38,6 +48,7 @@ size_t libunwind_unwind(void *ctx, void *dest, size_t buf_size)
     while (unw_step(&cursor))
     {
         unw_word_t ip, sp, off;
+        struct bun_frame frame;
 
         unw_get_reg(&cursor, UNW_REG_IP, &ip);
         unw_get_reg(&cursor, UNW_REG_SP, &sp);
@@ -45,15 +56,22 @@ size_t libunwind_unwind(void *ctx, void *dest, size_t buf_size)
         char symbol[256] = {"<unknown>"};
         char *name = symbol;
 
-        printf("#%-2d 0x%016" PRIxPTR " sp=0x%016" PRIxPTR " %s + 0x%" PRIxPTR "\n",
-               ++n,
-               (uintptr_t)(ip),
-               (uintptr_t)(sp),
-               name,
-               (uintptr_t)(off));
+        if (!unw_get_proc_name(&cursor, symbol, sizeof(symbol), &off))
+        {
+            name = symbol;
+        }
+
+        memset(&frame, 0, sizeof(frame));
+        frame.symbol = symbol;
+        frame.symbol_length = strlen(symbol);
+        frame.addr = ip;
+        frame.offset = off;
+
+        bun_frame_write(writer, &frame);
 
         if (name != symbol)
             free(name);
     }
-    return buf_size;
+    bun_free_writer_reader(writer);
+    return hdr->size;
 }
