@@ -1,10 +1,21 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#ifndef SYS_gettid
+#error "SYS_gettid unavailable on this system"
+#endif
+
+#define gettid() ((pid_t)syscall(SYS_gettid))
+
 #include <bun/stream.h>
 
 static void strcpy_null(char *dest, const char *src);
 static size_t strlen_null(const char *str);
+
+#define BUN_HEADER_MAGIC 0xaee9eb7a786a6145
 
 struct bun_writer_reader *
 bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
@@ -23,6 +34,7 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
     hdr->architecture = arch;
     hdr->version = 1;
     hdr->size = 0;
+    hdr->tid = (uint32_t)gettid();
 
     return writer;
 }
@@ -30,8 +42,13 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 struct bun_writer_reader *
 bun_create_reader(void *buffer, size_t size)
 {
-    struct bun_writer_reader *reader = malloc(sizeof(struct bun_writer_reader));
+    struct bun_writer_reader *reader;
     struct bun_payload_header *hdr;
+
+    if (size < sizeof(struct bun_payload_header))
+        return NULL;
+
+    reader = malloc(sizeof(struct bun_writer_reader));
 
     if (reader == NULL)
         return NULL;
@@ -121,6 +138,22 @@ bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
     reader->cursor += strlen_null(frame->filename) + 1;
 
     return true;
+}
+
+uint32_t
+bun_header_tid_get(struct bun_writer_reader *reader)
+{
+    struct bun_payload_header *header = reader->buffer;
+
+    return header->tid;
+}
+
+void
+bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid)
+{
+    struct bun_payload_header *header = writer->buffer;
+
+    header->tid = tid;
 }
 
 static void strcpy_null(char *dest, const char *src)

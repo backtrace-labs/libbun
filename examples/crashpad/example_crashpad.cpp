@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include <bun/bun.h>
+#include <bun/stream.h>
 
 #include <iostream>
 
@@ -10,6 +11,14 @@
 #include <client/crashpad_client.h>
 #include <client/crashpad_info.h>
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
+#ifndef SYS_gettid
+#error "SYS_gettid unavailable on this system"
+#endif
+
+#define gettid() ((pid_t)syscall(SYS_gettid))
 
 static bool
 startCrashHandler()
@@ -106,16 +115,25 @@ startCrashHandler()
 bun_t *handle;
 static void my_sighandler(int)
 {
+    std::cout << "handler tid: " << gettid() << "\n";
     void* buf;
     size_t buf_size;
     bun_unwind(handle, &buf, &buf_size);
     fprintf(stderr, "%p %lu\n", buf, buf_size);
     crashpad::CrashpadInfo::GetCrashpadInfo()
-        ->AddUserDataMinidumpStream(55558, buf, buf_size);
+        ->AddUserDataMinidumpStream(BUN_STREAM_ID, buf, buf_size);
+}
+
+void IamDummy()
+{
+    std::cout << "dummy tid: " << gettid() << "\n";
+    memset((void*)(intptr_t)4, 123, 1);
+    // throw 123;
 }
 
 int main()
 {
+    std::cout << "lolol" << std::endl;
     bun_config cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.unwind_backend = BUN_LIBBACKTRACE;
@@ -126,10 +144,11 @@ int main()
     std::cerr << startCrashHandler() << '\n';
     std::cerr << bun_register_signal_handers(handle, &my_sighandler) << '\n';
 
+    std::cout << "tid: " << gettid() << "\n";
+
     char buf[] = "MAIN TEST TEST TEST TEST";
     crashpad::CrashpadInfo::GetCrashpadInfo()
         ->AddUserDataMinidumpStream(55557, buf, sizeof(buf));
-
-    memset((void*)(intptr_t)4, 123, 1);
+    IamDummy();
     bun_destroy(handle);
 }

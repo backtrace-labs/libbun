@@ -14,7 +14,8 @@
 #include "backend/libunwindstack/bun_libunwindstack.h"
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
 
-bun_t *bun_create(struct bun_config* config)
+bun_t *
+bun_create(struct bun_config *config)
 {
     switch (config->unwind_backend) {
 #if defined(BUN_LIBBACKTRACE_ENABLED)
@@ -36,7 +37,8 @@ bun_t *bun_create(struct bun_config* config)
     }
 }
 
-void bun_destroy(bun_t *handle)
+void
+bun_destroy(bun_t *handle)
 {
     if (handle == NULL)
         return;

@@ -32,6 +32,8 @@
 extern "C" {
 #endif
 
+#define BUN_STREAM_ID 0xbac0000
+
 /*
  * bun_handle is the underlying type of the bun_t handle type. It stores the
  * configuration data used to generate reports.
@@ -63,9 +65,11 @@ struct bun_writer_reader
  */
 struct bun_payload_header
 {
+    uint64_t magic;
     uint16_t version;
     uint16_t architecture;
     uint32_t size;
+    uint32_t tid;
 };
 
 /*
@@ -115,6 +119,9 @@ size_t bun_frame_write(struct bun_writer_reader *writer,
  * of the data), this function will return false.
  */
 bool bun_frame_read(struct bun_writer_reader *writer, struct bun_frame *frame);
+
+uint32_t bun_header_tid_get(struct bun_writer_reader *reader);
+void bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid);
 
 #ifdef __cplusplus
 }
