@@ -25,12 +25,13 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 
     if (writer == NULL)
         return NULL;
-    
+
     writer->buffer = buffer;
     writer->cursor = buffer + sizeof(struct bun_payload_header);
     writer->size = size;
 
     hdr = buffer;
+
     hdr->architecture = arch;
     hdr->version = 1;
     hdr->size = 0;
@@ -73,8 +74,9 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
     size_t filename_length;
     size_t buffer_available = writer->size - (writer->cursor - writer->buffer);
     size_t would_write;
+    size_t register_size = sizeof(uint16_t) + sizeof(uint64_t);
     struct bun_payload_header *header = writer->buffer;
-    
+
     if (frame->symbol_length == 0 && frame->symbol != NULL) {
         symbol_length = strlen(frame->symbol);
     } else {
@@ -88,12 +90,13 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
     }
 
     would_write = symbol_length + filename_length + 2 + sizeof(frame->addr) +
-        sizeof(frame->line_no);
+        sizeof(frame->line_no) + sizeof(frame->register_count) +
+        frame->register_count * register_size;
 
     /* 2 for null bytes */
     if (would_write > buffer_available)
         return 0;
-    
+
     memcpy(writer->cursor, &frame->addr, sizeof(frame->addr));
     writer->cursor += sizeof(frame->addr);
 
@@ -109,6 +112,16 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
     strcpy_null(writer->cursor, frame->filename);
     writer->cursor += filename_length + 1;
 
+    memcpy(writer->cursor, &frame->register_count,
+        sizeof(frame->register_count));
+    writer->cursor += sizeof(frame->register_count);
+
+    if (frame->register_count > 0) {
+        memcpy(writer->cursor, frame->register_data,
+            frame->register_count * register_size);
+        writer->cursor += frame->register_count * register_size;
+    }
+
     header->size += would_write;
 
     return would_write;
@@ -117,11 +130,12 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
 bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
 {
     struct bun_payload_header *header = reader->buffer;
+    size_t register_size = sizeof(uint16_t) + sizeof(uint64_t);
     ptrdiff_t buffer_available = reader->size - (reader->cursor - reader->buffer);
 
     if (buffer_available <= 0)
         return false;
-    
+
     memcpy(&frame->addr, reader->cursor, sizeof(frame->addr));
     reader->cursor += sizeof(frame->addr);
 
@@ -136,6 +150,15 @@ bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
 
     frame->filename = reader->cursor;
     reader->cursor += strlen_null(frame->filename) + 1;
+
+    memcpy(&frame->register_count, reader->cursor, sizeof(uint16_t));
+    reader->cursor += sizeof(frame->register_count);
+
+    if (frame->register_count > 0) {
+        frame->register_data = reader->cursor;
+        frame->register_buffer_size = frame->register_count * register_size;
+        reader->cursor += frame->register_buffer_size;
+    }
 
     return true;
 }
@@ -156,7 +179,49 @@ bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid)
     header->tid = tid;
 }
 
-static void strcpy_null(char *dest, const char *src)
+bool
+bun_frame_register_append(struct bun_frame *frame, uint16_t reg,
+    uint64_t value)
+{
+    size_t register_size = sizeof(reg) + sizeof(value);
+    size_t max_registers = 0;
+    uint8_t *buffer;
+
+    if (frame->register_buffer_size > 0)
+        max_registers = frame->register_buffer_size / register_size;
+
+    if (frame->register_count >= max_registers)
+        return false;
+
+    buffer = frame->register_data + register_size * frame->register_count;
+    memcpy(buffer, &reg, sizeof(reg));
+    buffer += sizeof(reg);
+    memcpy(buffer, &value, sizeof(value));
+
+    frame->register_count++;
+    return true;
+}
+
+bool
+bun_frame_register_get(struct bun_frame *frame, uint16_t index, uint16_t *reg,
+    uint64_t *value)
+{
+    size_t register_size = sizeof(reg) + sizeof(value);
+    uint8_t *buffer;
+
+    if (index >= frame->register_count)
+        return false;
+
+    buffer = frame->register_data + register_size * index;
+    memcpy(reg, buffer, sizeof(*reg));
+    buffer += sizeof(*reg);
+    memcpy(value, buffer, sizeof(*value));
+
+    return true;
+}
+
+static void
+strcpy_null(char *dest, const char *src)
 {
     if (src == NULL)
         strcpy(dest, "");
@@ -164,11 +229,11 @@ static void strcpy_null(char *dest, const char *src)
         strcpy(dest, src);
 }
 
-static size_t strlen_null(const char *str)
+static size_t
+strlen_null(const char *str)
 {
     if (str == NULL)
         return 0;
     else
         return strlen(str);
 }
-

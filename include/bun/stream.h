@@ -86,6 +86,97 @@ struct bun_frame
     size_t filename_length;
     size_t line_no;
     size_t offset;
+    uint16_t register_count;
+    uint16_t register_buffer_size;
+    uint8_t *register_data;
+};
+
+enum bun_register {
+/* x86-64 specific registers */
+    BUN_REGISTER_X86_64_RAX,
+    BUN_REGISTER_X86_64_RBX,
+    BUN_REGISTER_X86_64_RCX,
+    BUN_REGISTER_X86_64_RDX,
+    BUN_REGISTER_X86_64_RSI,
+    BUN_REGISTER_X86_64_RDI,
+    BUN_REGISTER_X86_64_RBP,
+    BUN_REGISTER_X86_64_RSP,
+    BUN_REGISTER_X86_64_R8,
+    BUN_REGISTER_X86_64_R9,
+    BUN_REGISTER_X86_64_R10,
+    BUN_REGISTER_X86_64_R11,
+    BUN_REGISTER_X86_64_R12,
+    BUN_REGISTER_X86_64_R13,
+    BUN_REGISTER_X86_64_R14,
+    BUN_REGISTER_X86_64_R15,
+    BUN_REGISTER_X86_64_RIP,
+/* x86 specific registers */
+    BUN_REGISTER_X86_EAX,
+    BUN_REGISTER_X86_EBX,
+    BUN_REGISTER_X86_ECX,
+    BUN_REGISTER_X86_EDX,
+    BUN_REGISTER_X86_ESI,
+    BUN_REGISTER_X86_EDI,
+    BUN_REGISTER_X86_EBP,
+    BUN_REGISTER_X86_ESP,
+    BUN_REGISTER_X86_EIP,
+/* aarch64 specific registers */
+    BUN_REGISTER_AARCH64_X1,
+    BUN_REGISTER_AARCH64_X2,
+    BUN_REGISTER_AARCH64_X3,
+    BUN_REGISTER_AARCH64_X4,
+    BUN_REGISTER_AARCH64_X5,
+    BUN_REGISTER_AARCH64_X6,
+    BUN_REGISTER_AARCH64_X7,
+    BUN_REGISTER_AARCH64_X8,
+    BUN_REGISTER_AARCH64_X9,
+    BUN_REGISTER_AARCH64_X10,
+    BUN_REGISTER_AARCH64_X11,
+    BUN_REGISTER_AARCH64_X12,
+    BUN_REGISTER_AARCH64_X13,
+    BUN_REGISTER_AARCH64_X14,
+    BUN_REGISTER_AARCH64_X15,
+    BUN_REGISTER_AARCH64_X16,
+    BUN_REGISTER_AARCH64_X17,
+    BUN_REGISTER_AARCH64_X18,
+    BUN_REGISTER_AARCH64_X19,
+    BUN_REGISTER_AARCH64_X20,
+    BUN_REGISTER_AARCH64_X21,
+    BUN_REGISTER_AARCH64_X22,
+    BUN_REGISTER_AARCH64_X23,
+    BUN_REGISTER_AARCH64_X24,
+    BUN_REGISTER_AARCH64_X25,
+    BUN_REGISTER_AARCH64_X26,
+    BUN_REGISTER_AARCH64_X27,
+    BUN_REGISTER_AARCH64_X28,
+    BUN_REGISTER_AARCH64_X29,
+    BUN_REGISTER_AARCH64_X30,
+    BUN_REGISTER_AARCH64_X31,
+    BUN_REGISTER_AARCH64_X32,
+    BUN_REGISTER_AARCH64_SP,
+    BUN_REGISTER_AARCH64_PC,
+    BUN_REGISTER_AARCH64_PSTATE,
+/* arm specific registers*/
+    BUN_REGISTER_ARM_R0,
+    BUN_REGISTER_ARM_R1,
+    BUN_REGISTER_ARM_R2,
+    BUN_REGISTER_ARM_R3,
+    BUN_REGISTER_ARM_R4,
+    BUN_REGISTER_ARM_R5,
+    BUN_REGISTER_ARM_R6,
+    BUN_REGISTER_ARM_R7,
+    BUN_REGISTER_ARM_R8,
+    BUN_REGISTER_ARM_R9,
+    BUN_REGISTER_ARM_R10,
+    BUN_REGISTER_ARM_R11,
+    BUN_REGISTER_ARM_R12,
+    BUN_REGISTER_ARM_R13,
+    BUN_REGISTER_ARM_R14,
+    BUN_REGISTER_ARM_R15,
+    BUN_REGISTER_ARM_IP,
+    BUN_REGISTER_ARM_SP,
+/* count */
+    BUN_REGISTER_COUNT
 };
 
 /*
@@ -122,6 +213,11 @@ bool bun_frame_read(struct bun_writer_reader *writer, struct bun_frame *frame);
 
 uint32_t bun_header_tid_get(struct bun_writer_reader *reader);
 void bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid);
+
+bool bun_frame_register_append(struct bun_frame *, uint16_t reg,
+    uint64_t value);
+bool bun_frame_register_get(struct bun_frame *, uint16_t index, uint16_t *reg,
+    uint64_t *value);
 
 #ifdef __cplusplus
 }

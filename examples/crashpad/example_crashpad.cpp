@@ -99,14 +99,6 @@ startCrashHandler()
     /* Enable automated uploads. */
     database->GetSettings()->SetUploadsEnabled(true);
 
-    // return client.StartHandler(handler,
-    //     db,
-    //     db,
-    //     url,
-    //     annotations,
-    //     arguments,
-    //     true,
-    //     true);
     return CrashpadClient::StartHandlerAtCrashForBacktrace(
         handler, db, db, url, annotations, arguments, {}
     );
@@ -116,7 +108,7 @@ bun_t *handle;
 static void my_sighandler(int)
 {
     std::cout << "handler tid: " << gettid() << "\n";
-    void* buf;
+    void *buf;
     size_t buf_size;
     bun_unwind(handle, &buf, &buf_size);
     fprintf(stderr, "%p %lu\n", buf, buf_size);
@@ -136,8 +128,8 @@ int main()
     std::cout << "lolol" << std::endl;
     bun_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.unwind_backend = BUN_LIBBACKTRACE;
-    cfg.buffer_size = 8172;
+    cfg.unwind_backend = BUN_LIBUNWIND;
+    cfg.buffer_size = 8192;
     cfg.buffer = calloc(1, cfg.buffer_size);
     handle = bun_create(&cfg);
 

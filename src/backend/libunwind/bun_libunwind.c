@@ -13,6 +13,10 @@
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 
+#define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                     \
+if (unw_get_reg(cursor, unw_reg, &var) == 0)                                   \
+    bun_frame_register_append(frame, bun_reg, var);
+
 static size_t libunwind_unwind(void *);
 
 bun_t *_bun_initialize_libunwind(struct bun_config *config)
@@ -47,14 +51,14 @@ size_t libunwind_unwind(void *ctx)
     int n = 0;
     while (unw_step(&cursor))
     {
-        unw_word_t ip, sp, off;
+        unw_word_t ip, sp, off, current_register;
         struct bun_frame frame;
+        char registers[256];
+        char symbol[256] = {"<unknown>"};
+        char *name = symbol;
 
         unw_get_reg(&cursor, UNW_REG_IP, &ip);
         unw_get_reg(&cursor, UNW_REG_SP, &sp);
-
-        char symbol[256] = {"<unknown>"};
-        char *name = symbol;
 
         if (!unw_get_proc_name(&cursor, symbol, sizeof(symbol), &off))
         {
@@ -66,7 +70,19 @@ size_t libunwind_unwind(void *ctx)
         frame.symbol_length = strlen(symbol);
         frame.addr = ip;
         frame.offset = off;
+        frame.register_buffer_size = sizeof(registers);
+        frame.register_data = registers;
 
+#if defined(__x86_64__)
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RAX, UNW_X86_64_RAX,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RBX, UNW_X86_64_RBX,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RCX, UNW_X86_64_RCX,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RDX, UNW_X86_64_RDX,
+            current_register);
+#endif
         bun_frame_write(writer, &frame);
 
         if (name != symbol)
