@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(backtrace-libbun
     VERSION 0.1
-    LANGUAGES C CXX ASM
+    LANGUAGES C CXX
 )
 
 set(LIBBACKTRACE_ENABLED FALSE)
