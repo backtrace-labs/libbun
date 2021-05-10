@@ -15,7 +15,7 @@
 static void strcpy_null(char *dest, const char *src);
 static size_t strlen_null(const char *str);
 
-#define BUN_HEADER_MAGIC 0xaee9eb7a786a6145
+#define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 
 struct bun_writer_reader *
 bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
@@ -32,6 +32,7 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 
     hdr = buffer;
 
+    hdr->magic = BUN_HEADER_MAGIC;
     hdr->architecture = arch;
     hdr->version = 1;
     hdr->size = sizeof(*hdr);
@@ -44,7 +45,7 @@ struct bun_writer_reader *
 bun_create_reader(void *buffer, size_t size)
 {
     struct bun_writer_reader *reader;
-    struct bun_payload_header *hdr;
+    struct bun_payload_header *header;
 
     if (size < sizeof(struct bun_payload_header))
         return NULL;
@@ -53,10 +54,16 @@ bun_create_reader(void *buffer, size_t size)
 
     if (reader == NULL)
         return NULL;
-    
+
     reader->buffer = buffer;
     reader->cursor = buffer + sizeof(struct bun_payload_header);
     reader->size = size;
+
+    header = buffer;
+    if (header->magic != BUN_HEADER_MAGIC) {
+        free(reader);
+        return NULL;
+    }
 
     return reader;
 }
@@ -123,7 +130,6 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
     }
 
     header->size += would_write;
-
     return would_write;
 }
 
@@ -132,6 +138,8 @@ bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
     struct bun_payload_header *header = reader->buffer;
     size_t register_size = sizeof(uint16_t) + sizeof(uint64_t);
     ptrdiff_t buffer_available = reader->size - (reader->cursor - reader->buffer);
+
+    (void) header;
 
     if (buffer_available <= 0)
         return false;

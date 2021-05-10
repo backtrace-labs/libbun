@@ -129,7 +129,7 @@ int main()
     bun_config cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.unwind_backend = BUN_LIBUNWIND;
-    cfg.buffer_size = 8192;
+    cfg.buffer_size = 65536;
     cfg.buffer = calloc(1, cfg.buffer_size);
     handle = bun_create(&cfg);
 
