@@ -34,7 +34,7 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 
     hdr->architecture = arch;
     hdr->version = 1;
-    hdr->size = 0;
+    hdr->size = sizeof(*hdr);
     hdr->tid = (uint32_t)gettid();
 
     return writer;
@@ -206,7 +206,7 @@ bool
 bun_frame_register_get(struct bun_frame *frame, uint16_t index, uint16_t *reg,
     uint64_t *value)
 {
-    size_t register_size = sizeof(reg) + sizeof(value);
+    size_t register_size = sizeof(*reg) + sizeof(*value);
     uint8_t *buffer;
 
     if (index >= frame->register_count)

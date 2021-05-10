@@ -53,7 +53,7 @@ size_t libunwind_unwind(void *ctx)
     {
         unw_word_t ip, sp, off, current_register;
         struct bun_frame frame;
-        char registers[256];
+        char registers[256] = {0};
         char symbol[256] = {"<unknown>"};
         char *name = symbol;
 
