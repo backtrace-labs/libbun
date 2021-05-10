@@ -176,7 +176,7 @@ enum bun_register {
     BUN_REGISTER_ARM_IP,
     BUN_REGISTER_ARM_SP,
     BUN_REGISTER_ARM_PSTATE,
-    /* count */
+/* count */
     BUN_REGISTER_COUNT
 };
 
