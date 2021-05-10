@@ -8,6 +8,7 @@ list(APPEND BUNWIND_SOURCES
 
 add_library(bun STATIC)
 target_compile_features(bun PRIVATE c_std_11)
+target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
 
 #libbacktrace
