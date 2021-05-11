@@ -65,7 +65,7 @@ void libunwindstack_populate_regs_arm64(struct bun_frame *frame, unwindstack::Re
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_X28, (regsImpl)[28]);
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_X29, (regsImpl)[29]);
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_X30, (regsImpl)[30]);
-    bun_frame_register_append(frame, BUN_REGISTER_AARCH64_SP, (regsImpl)[31]);
+    bun_frame_register_append(frame, BUN_REGISTER_AARCH64_X31, (regsImpl)[31]);
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_PC, (regsImpl)[32]);
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_PSTATE, (regsImpl)[33]);
 }
@@ -87,9 +87,7 @@ void libunwindstack_populate_regs_arm(struct bun_frame *frame, unwindstack::Regs
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R10, (regsImpl)[10]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R11, (regsImpl)[11]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R12, (regsImpl)[12]);
-    bun_frame_register_append(frame, BUN_REGISTER_ARM_IP, (regsImpl)[12]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R13, (regsImpl)[13]);
-    bun_frame_register_append(frame, BUN_REGISTER_ARM_SP, (regsImpl)[13]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R14, (regsImpl)[14]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_R15, (regsImpl)[15]);
     bun_frame_register_append(frame, BUN_REGISTER_ARM_PSTATE, (regsImpl)[16]);
