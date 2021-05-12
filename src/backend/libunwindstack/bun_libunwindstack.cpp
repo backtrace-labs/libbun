@@ -30,7 +30,38 @@ bun_t *_bun_initialize_libunwindstack(struct bun_config *config)
     return handle;
 }
 
-void libunwindstack_populate_regs_arm64(struct bun_frame *frame, unwindstack::Regs &registers)
+void libunwindstack_populate_regs_arm64(struct bun_frame *b_frame, const unwindstack::FrameData& u_frame)
+{
+    bun_frame_register_append(b_frame, BUN_REGISTER_AARCH64_X31, u_frame.sp);
+    bun_frame_register_append(b_frame, BUN_REGISTER_AARCH64_PC, u_frame.pc);
+}
+
+void libunwindstack_populate_regs_arm(struct bun_frame *b_frame, const unwindstack::FrameData& u_frame)
+{
+    bun_frame_register_append(b_frame, BUN_REGISTER_ARM_R13, u_frame.sp);
+    bun_frame_register_append(b_frame, BUN_REGISTER_ARM_R15, u_frame.pc);
+}
+
+void libunwindstack_populate_regs_x86_64(struct bun_frame *b_frame, const unwindstack::FrameData& u_frame)
+{
+    bun_frame_register_append(b_frame, BUN_REGISTER_X86_64_RSP, u_frame.sp);
+    bun_frame_register_append(b_frame, BUN_REGISTER_X86_64_RIP, u_frame.pc);
+}
+
+void libunwindstack_populate_regs(struct bun_frame *b_frame, const unwindstack::FrameData& u_frame)
+{
+#ifdef __x86_64__
+    libunwindstack_populate_regs_x86_64(b_frame, u_frame);
+#elif __i386__
+    // No support for x86, we don't support Crashpad x86 either
+#elif __aarch64__
+    libunwindstack_populate_regs_arm64(b_frame, u_frame);
+#elif __arm__
+    libunwindstack_populate_regs_arm(b_frame, u_frame);
+#endif
+}
+
+void libunwindstack_populate_regs_first_frame_arm64(struct bun_frame *frame, unwindstack::Regs &registers)
 {
     unwindstack::RegsImpl<unsigned long>& regsImpl = dynamic_cast<unwindstack::RegsImpl<unsigned long>&>(registers);
 
@@ -70,7 +101,7 @@ void libunwindstack_populate_regs_arm64(struct bun_frame *frame, unwindstack::Re
     bun_frame_register_append(frame, BUN_REGISTER_AARCH64_PSTATE, (regsImpl)[33]);
 }
 
-void libunwindstack_populate_regs_arm(struct bun_frame *frame, unwindstack::Regs &registers)
+void libunwindstack_populate_regs_first_frame_arm(struct bun_frame *frame, unwindstack::Regs &registers)
 {
     unwindstack::RegsImpl<unsigned int>& regsImpl = dynamic_cast<unwindstack::RegsImpl<unsigned int>&>(registers);
 
@@ -93,7 +124,7 @@ void libunwindstack_populate_regs_arm(struct bun_frame *frame, unwindstack::Regs
     bun_frame_register_append(frame, BUN_REGISTER_ARM_PSTATE, (regsImpl)[16]);
 }
 
-void libunwindstack_populate_regs_x86_64(struct bun_frame *frame, unwindstack::Regs &registers)
+void libunwindstack_populate_regs_first_frame_x86_64(struct bun_frame *frame, unwindstack::Regs &registers)
 {
     unwindstack::RegsImpl<unsigned long>& regsImpl = dynamic_cast<unwindstack::RegsImpl<unsigned long>&>(registers);
 
@@ -116,16 +147,16 @@ void libunwindstack_populate_regs_x86_64(struct bun_frame *frame, unwindstack::R
     bun_frame_register_append(frame, BUN_REGISTER_X86_64_RIP, (regsImpl)[16]);
 }
 
-void libunwindstack_populate_regs(struct bun_frame *frame, unwindstack::Regs &registers)
+void libunwindstack_populate_regs_first_frame(struct bun_frame *frame, unwindstack::Regs &registers)
 {
 #ifdef __x86_64__
-    libunwindstack_populate_regs_x86_64(frame, registers);
+    libunwindstack_populate_regs_first_frame_x86_64(frame, registers);
 #elif __i386__
     // No support for x86, we don't support Crashpad x86 either
 #elif __aarch64__
-    libunwindstack_populate_regs_arm64(frame, registers);
+    libunwindstack_populate_regs_first_frame_arm64(frame, registers);
 #elif __arm__
-    libunwindstack_populate_regs_arm(frame, registers);
+    libunwindstack_populate_regs_first_frame_arm(frame, registers);
 #endif
 }
 
@@ -159,6 +190,7 @@ size_t libunwindstack_unwind(void *ctx)
     };
     unwinder.Unwind();
 
+    bool first_frame = true;
     for (const auto &frame : unwinder.frames()) {
         struct bun_frame bun_frame;
         memset(&bun_frame, 0, sizeof(bun_frame));
@@ -175,8 +207,12 @@ size_t libunwindstack_unwind(void *ctx)
         bun_frame.register_buffer_size = sizeof(register_buf);
         bun_frame.register_data = register_buf;
 
-        libunwindstack_populate_regs(&bun_frame, *registers);
-
+        if (first_frame) {
+            libunwindstack_populate_regs_first_frame(&bun_frame, *registers);
+            first_frame = false;
+        } else {
+            libunwindstack_populate_regs(&bun_frame, frame);
+        }
         bun_header_tid_set(writer, gettid());
 
         bun_frame_write(writer, &bun_frame);
