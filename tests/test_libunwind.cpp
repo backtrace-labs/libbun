@@ -22,7 +22,7 @@ TEST(libunwind, initialize) {
     char buf[128] = {};
 
     bun_config cfg;
-    cfg.unwind_backend = BUN_LIBUNWIND;
+    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
     cfg.buffer_size = sizeof(buf);
     cfg.buffer = buf;
 
@@ -33,7 +33,7 @@ TEST(libunwind, initialize) {
 TEST(libunwind, unwinding) {
     std::vector<char> buf(0x10000);
     bun_config cfg = BUN_CONFIG_INITIALIZE;
-    cfg.unwind_backend = BUN_LIBUNWIND;
+    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
     cfg.buffer_size = buf.size();
     cfg.buffer = buf.data();
     bun_t *handle = bun_create(&cfg);

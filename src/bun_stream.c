@@ -37,6 +37,7 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
     hdr->version = 1;
     hdr->size = sizeof(*hdr);
     hdr->tid = (uint32_t)gettid();
+    hdr->backend = BUN_BACKEND_EMPTY;
 
     return writer;
 }
@@ -171,20 +172,35 @@ bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
     return true;
 }
 
-uint32_t
-bun_header_tid_get(struct bun_writer_reader *reader)
-{
-    struct bun_payload_header *header = reader->buffer;
-
-    return header->tid;
-}
-
 void
 bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid)
 {
     struct bun_payload_header *header = writer->buffer;
 
     header->tid = tid;
+}
+
+uint32_t
+bun_header_tid_get(const struct bun_writer_reader *reader)
+{
+    const struct bun_payload_header *header = reader->buffer;
+
+    return header->tid;
+}
+
+void
+bun_header_backend_set(struct bun_writer_reader *writer, uint16_t backend)
+{
+    struct bun_payload_header *header = writer->buffer;
+
+    header->backend = backend;
+}
+
+uint16_t bun_header_backend_get(const struct bun_writer_reader *reader)
+{
+    const struct bun_payload_header *header = reader->buffer;
+
+    return header->backend;
 }
 
 bool

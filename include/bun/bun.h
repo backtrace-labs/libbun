@@ -40,15 +40,15 @@ extern "C" {
 enum bun_unwind_backend
 {
 #if defined(BUN_LIBUNWIND_ENABLED)
-    BUN_LIBUNWIND = 0,
+    BUN_BACKEND_LIBUNWIND = 0,
 #endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBBACKTRACE_ENABLED)
-    BUN_LIBBACKTRACE = 1,
+    BUN_BACKEND_LIBBACKTRACE = 1,
 #endif /* BUN_LIBBACKTRACE_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
-    BUN_LIBUNWINDSTACK = 2,
+    BUN_BACKEND_LIBUNWINDSTACK = 2,
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
-    BUN_EMPTY_UNWIND_BACKEND = -1
+    BUN_BACKEND_EMPTY = -1
 };
 
 /*
@@ -77,7 +77,7 @@ struct bun_config
     void *buffer;
     enum bun_architecture arch;
 };
-#define BUN_CONFIG_INITIALIZE { BUN_EMPTY_UNWIND_BACKEND, 0, NULL, BUN_ARCH_UNKNOWN }
+#define BUN_CONFIG_INITIALIZE { BUN_BACKEND_EMPTY, 0, NULL, BUN_ARCH_UNKNOWN }
 
 /*
  * Opaque handle for the unwinding object.
@@ -116,7 +116,7 @@ enum bun_unwind_result bun_unwind(bun_t *, void **, size_t *);
 /*
  * This function registers signal handlers for the following signals:
  * - SIGSEGV
- * 
+ *
  * If there were registered signal handlers for those signals, after the first
  * call, they're reregistered and the signal is reraised to invoke the previous
  * handler.

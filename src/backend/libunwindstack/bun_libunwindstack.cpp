@@ -138,6 +138,8 @@ size_t libunwindstack_unwind(void *ctx)
     writer = bun_create_writer(handle->unwind_buffer,
         handle->unwind_buffer_size, handle->arch);
 
+    bun_header_backend_set(writer, BUN_BACKEND_LIBUNWINDSTACK);
+
     std::unique_ptr<unwindstack::Regs> registers;
     unwindstack::LocalMaps local_maps;
 

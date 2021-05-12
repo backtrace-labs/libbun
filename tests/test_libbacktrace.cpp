@@ -38,7 +38,7 @@ TEST(libbacktrace, initialize) {
 TEST(libbacktrace, unwinding) {
     std::vector<char> buf(0x10000);
     bun_config cfg = BUN_CONFIG_INITIALIZE;
-    cfg.unwind_backend = BUN_LIBBACKTRACE;
+    cfg.unwind_backend = BUN_BACKEND_LIBBACKTRACE;
     cfg.buffer_size = buf.size();
     cfg.buffer = buf.data();
     bun_t *handle = bun_create(&cfg);

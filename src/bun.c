@@ -19,17 +19,17 @@ bun_create(struct bun_config *config)
 {
     switch (config->unwind_backend) {
 #if defined(BUN_LIBBACKTRACE_ENABLED)
-        case BUN_LIBBACKTRACE:
+        case BUN_BACKEND_LIBBACKTRACE:
             return _bun_initialize_libbacktrace(config);
             break;
 #endif /* BUN_LIBBACKTRACE_ENABLED */
 #if defined(BUN_LIBUNWIND_ENABLED)
-        case BUN_LIBUNWIND:
+        case BUN_BACKEND_LIBUNWIND:
             return _bun_initialize_libunwind(config);
             break;
 #endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
-        case BUN_LIBUNWINDSTACK:
+        case BUN_BACKEND_LIBUNWINDSTACK:
             return _bun_initialize_libunwindstack(config);
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
         default:
@@ -58,11 +58,10 @@ bun_unwind(bun_t *handle, void **buf, size_t *buf_size)
         return BUN_UNWIND_FAILURE;
 
     bytes_written = handle->unwind_function(handle);
-    
+
     if (buf != NULL && buf_size != NULL) {
         *buf = handle->unwind_buffer;
         *buf_size = bytes_written;
     }
     return BUN_UNWIND_SUCCESS;
 }
-

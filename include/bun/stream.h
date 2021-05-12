@@ -32,6 +32,9 @@
 extern "C" {
 #endif
 
+/*
+ * Unique stream id for libbun
+ */
 #define BUN_STREAM_ID 0xbac0000
 
 /*
@@ -70,6 +73,7 @@ struct bun_payload_header
     uint16_t architecture;
     uint32_t size;
     uint32_t tid;
+    uint16_t backend;
 };
 
 /*
@@ -209,11 +213,42 @@ size_t bun_frame_write(struct bun_writer_reader *writer,
  */
 bool bun_frame_read(struct bun_writer_reader *writer, struct bun_frame *frame);
 
-uint32_t bun_header_tid_get(struct bun_writer_reader *reader);
+/*
+ * Set thread id of the reporting thread.
+ */
 void bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid);
 
+/*
+ * Get thread id of the reporting thread.
+ */
+uint32_t bun_header_tid_get(const struct bun_writer_reader *reader);
+
+/*
+ * Set thread id of the reporting thread.
+ */
+void bun_header_backend_set(struct bun_writer_reader *writer, uint16_t backend);
+
+/*
+ * Get thread id of the reporting thread.
+ */
+uint16_t bun_header_backend_get(const struct bun_writer_reader *reader);
+
+/*
+ * Append the register value to the specified frame.
+ *
+ * Returns false if there is no space left in the frame register buffer.
+ * Returns true otherwise.
+ */
 bool bun_frame_register_append(struct bun_frame *, uint16_t reg,
     uint64_t value);
+
+/*
+ * Gets the register value and type at the index.
+ *
+ * index must be less than frame->register_count
+ *
+ * Returns true if the values have been set.
+ */
 bool bun_frame_register_get(struct bun_frame *, uint16_t index, uint16_t *reg,
     uint64_t *value);
 

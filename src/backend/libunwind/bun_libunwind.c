@@ -42,6 +42,8 @@ size_t libunwind_unwind(void *ctx)
     writer = bun_create_writer(handle->unwind_buffer,
         handle->unwind_buffer_size, handle->arch);
 
+    bun_header_backend_set(writer, BUN_BACKEND_LIBUNWIND);
+
     unw_cursor_t cursor;
     unw_context_t context;
 
@@ -53,7 +55,7 @@ size_t libunwind_unwind(void *ctx)
     {
         unw_word_t ip, sp, off, current_register;
         struct bun_frame frame;
-        char registers[256] = {0};
+        char registers[512] = {0};
         char symbol[256] = {"<unknown>"};
         char *name = symbol;
 
@@ -81,6 +83,30 @@ size_t libunwind_unwind(void *ctx)
         REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RCX, UNW_X86_64_RCX,
             current_register);
         REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RDX, UNW_X86_64_RDX,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RSI, UNW_X86_64_RSI,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RDI, UNW_X86_64_RDI,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RBP, UNW_X86_64_RBP,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R8, UNW_X86_64_R8,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R9, UNW_X86_64_R9,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R10, UNW_X86_64_R10,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R11, UNW_X86_64_R11,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R12, UNW_X86_64_R12,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R13, UNW_X86_64_R13,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R14, UNW_X86_64_R14,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_R15, UNW_X86_64_R15,
+            current_register);
+        REGISTER_GET(&cursor, &frame, BUN_REGISTER_X86_64_RIP, UNW_X86_64_RIP,
             current_register);
 #endif
         bun_frame_write(writer, &frame);

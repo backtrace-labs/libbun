@@ -128,7 +128,7 @@ int main()
     std::cout << "lolol" << std::endl;
     bun_config cfg;
     memset(&cfg, 0, sizeof(cfg));
-    cfg.unwind_backend = BUN_LIBUNWIND;
+    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
     cfg.buffer_size = 65536;
     cfg.buffer = calloc(1, cfg.buffer_size);
     handle = bun_create(&cfg);

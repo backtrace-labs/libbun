@@ -32,7 +32,7 @@ bun_t *_bun_initialize_libbacktrace(struct bun_config *config)
 
     if (handle == NULL)
         return NULL;
-    
+
     handle->unwind_function = libbacktrace_unwind;
     handle->unwind_buffer = config->buffer;
     handle->unwind_buffer_size = config->buffer_size;
@@ -52,12 +52,14 @@ size_t libbacktrace_unwind(void *ctx)
         BACKTRACE_SUPPORTS_THREADS,
         NULL /*error_callback*/,
         NULL);
-    
+
     struct backtrace_context bt_ctx;
 
     bt_ctx.state = state;
     bt_ctx.writer = bun_create_writer(handle->unwind_buffer,
         handle->unwind_buffer_size, handle->arch);
+
+    bun_header_backend_set(bt_ctx.writer, BUN_BACKEND_LIBBACKTRACE);
 
     backtrace_full(state, 0, full_callback, error_callback, &bt_ctx);
     bun_free_writer_reader(bt_ctx.writer);
