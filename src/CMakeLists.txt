@@ -10,7 +10,10 @@ add_library(bun STATIC)
 target_compile_features(bun PRIVATE c_std_11)
 target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
-target_link_libraries(bun PUBLIC pthread)
+if(NOT ANDROID)
+    target_link_libraries(bun PUBLIC pthread)
+endif()
+
 
 find_package(libunwind)
 
@@ -47,6 +50,17 @@ if(LIBBACKTRACE_FOUND)
         backend/libbacktrace/bun_libbacktrace.h
     )
 endif()
+
+if(LIBUNWINDSTACK_ENABLED)
+    target_include_directories(bun PRIVATE ../external/libunwindstack-ndk/include)
+    target_compile_definitions(bun PUBLIC BUN_LIBUNWINDSTACK_ENABLED)
+    target_link_libraries(bun PRIVATE unwindstack)
+    list(APPEND BUNWIND_SOURCES
+        backend/libunwindstack/bun_libunwindstack.cpp
+        backend/libunwindstack/bun_libunwindstack.h
+    )
+endif()
+
 
 if (LIBUNWIND_FOUND)
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBUNWIND)

@@ -8,6 +8,8 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
+#include "payload_header.h"
+
 static int dummy_line;
 /*
  * This function is not marked static on purpose - we do want the name to appear
@@ -27,19 +29,20 @@ TEST(libbacktrace, initialize) {
 TEST(libbacktrace, unwinding) {
     std::vector<char> buf(0x10000);
     struct bun_handle handle;
+    struct bun_buffer buffer;
 
     ASSERT_TRUE(bun_handle_init(&handle, BUN_BACKEND_LIBBACKTRACE));
 
+    bool buffer_init_result = bun_buffer_init(&buffer, buf.data(), buf.size());
+    ASSERT_TRUE(buffer_init_result);
+
     size_t size = 0;
-    dummy_func([&]{ size = bun_unwind(&handle, buf.data(), buf.size()); });
+    dummy_func([&]{ size = bun_unwind(&handle, &buffer); });
 
     ASSERT_NE(size, 0);
 
     struct bun_reader reader;
-    bun_reader_init(&reader, buf.data(), size);
-
-    bun_payload_header *header = reinterpret_cast<bun_payload_header *>(buf.data());
-    ASSERT_EQ(header->version, 1);
+    bun_reader_init(&reader, &buffer, &handle);
 
     std::vector<bun_frame> frames;
     bun_frame next_frame;
@@ -63,12 +66,16 @@ TEST(libbacktrace, unwinding) {
 
 TEST(libbacktrace, tiny_buffer)
 {
-    std::vector<char> buf(sizeof(bun_payload_header));
+    std::vector<char> buf(payload_header_size());
     struct bun_handle handle;
+    struct bun_buffer buffer;
+
+    bool buffer_init_result = bun_buffer_init(&buffer, buf.data(), buf.size());
+    ASSERT_TRUE(buffer_init_result);
 
     ASSERT_TRUE(bun_handle_init(&handle, BUN_BACKEND_LIBBACKTRACE));
     size_t size = 0;
-    dummy_func([&]{ size = bun_unwind(&handle, buf.data(), buf.size()); });
+    dummy_func([&]{ size = bun_unwind(&handle, &buffer); });
 
     ASSERT_EQ(size, 0);
 

@@ -17,7 +17,9 @@
 
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 
+#if !defined(__ANDROID__)
 static pid_t gettid();
+#endif
 
 static uint16_t read_le_16(struct bun_reader *src);
 static void write_le_16(struct bun_writer *dest, uint16_t value);
@@ -26,7 +28,7 @@ static void write_le_64(struct bun_writer *dest, uint64_t value);
 
 struct bun_buffer_payload
 {
-    uint32_t write_count;
+    _Atomic(uint32_t) write_count;
     struct bun_handle *handle;
     struct bun_payload_header header;
 };
@@ -203,7 +205,7 @@ bool bun_frame_read(struct bun_reader *reader, struct bun_frame *frame)
     frame->register_count = read_le_16(reader);
 
     if (frame->register_count > 0) {
-        frame->register_data = reader->data.cursor;
+        frame->register_data = (uint8_t *)reader->data.cursor;
         frame->register_buffer_size = frame->register_count * register_size;
         reader->data.cursor += frame->register_buffer_size;
     }
@@ -290,11 +292,13 @@ bun_frame_register_get(struct bun_frame *frame, size_t index,
     return true;
 }
 
+#if !defined(__ANDROID__)
 static pid_t
 gettid()
 {
     return (pid_t)syscall(SYS_gettid);
 }
+#endif
 
 static uint16_t
 read_le_16(struct bun_reader *src)

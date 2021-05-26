@@ -7,6 +7,8 @@
 
 #include "bun_libbacktrace.h"
 
+#include "../../bun_internal.h"
+
 #include <libbacktrace/backtrace.h>
 #include <libbacktrace/backtrace-supported.h>
 
@@ -19,7 +21,7 @@ struct backtrace_context
     bun_writer_t writer;
 };
 
-static size_t libbacktrace_unwind(struct bun_handle *, void *, size_t);
+static size_t libbacktrace_unwind(struct bun_handle *, struct bun_buffer *);
 static void error_callback(void *data, const char *msg, int errnum);
 static void syminfo_callback(void *data, uintptr_t pc, const char *symname,
     uintptr_t symval, uintptr_t symsize);
@@ -50,13 +52,12 @@ bool bun_internal_initialize_libbacktrace(struct bun_handle *handle)
     return true;
 }
 
-size_t libbacktrace_unwind(struct bun_handle *handle, void *buffer,
-    size_t buffer_size)
+size_t libbacktrace_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
     struct backtrace_context bt_ctx;
-    struct bun_payload_header *hdr = buffer;
+    struct bun_payload_header *hdr = bun_buffer_payload(buffer);
 
-    bun_writer_init(&bt_ctx.writer, buffer, buffer_size, BUN_ARCH_DETECTED);
+    bun_writer_init(&bt_ctx.writer, buffer, BUN_ARCH_DETECTED, handle);
 
     bun_header_backend_set(&bt_ctx.writer, BUN_BACKEND_LIBBACKTRACE);
 

@@ -13,8 +13,14 @@ target_include_directories(test_helper PUBLIC ../src)
 target_link_libraries(test_helper PUBLIC bun)
 
 set(TEST_LIBRARIES
-    bun gtest gtest_main Threads::Threads test_helper
+    bun gtest Threads::Threads test_helper
 )
+
+if (ANDROID)
+    list(APPEND TEST_LIBRARIES log)
+else()
+    list(APPEND TEST_LIBRARIES gtest_main)
+endif()
 
 add_executable(test_base test_base.cpp)
 target_link_libraries(test_base ${TEST_LIBRARIES})
@@ -33,12 +39,26 @@ if (LIBUNWIND_ENABLED)
     target_link_libraries(test_libunwind_poison_malloc ${TEST_LIBRARIES})
     target_link_libraries(test_libunwind_poison_malloc poison_malloc)
     add_test(NAME libunwind_poison_malloc COMMAND test_libunwind_poison_malloc)
-    set_property(TEST libunwind_poison_malloc PROPERTY
-        ENVIRONMENT LD_PRELOAD=./helper/poison_malloc/libpoison_malloc.so)
 endif()
 
 if (LIBBACKTRACE_ENABLED)
     add_executable(test_libbacktrace test_libbacktrace.cpp)
     target_link_libraries(test_libbacktrace ${TEST_LIBRARIES})
     add_test(NAME libbacktrace COMMAND test_libbacktrace)
+
+    add_executable(test_libbacktrace_poison_malloc test_libbacktrace_poison_malloc.cpp)
+    target_link_libraries(test_libbacktrace_poison_malloc ${TEST_LIBRARIES})
+    target_link_libraries(test_libbacktrace_poison_malloc poison_malloc)
+    add_test(NAME libbacktrace_poison_malloc COMMAND test_libbacktrace_poison_malloc)
+endif()
+
+if (LIBUNWINDSTACK_ENABLED)
+    add_executable(test_libunwindstack test_libunwindstack.cpp)
+    target_link_libraries(test_libunwindstack ${TEST_LIBRARIES})
+    add_test(NAME libunwindstack COMMAND test_libunwindstack)
+
+    add_executable(test_libunwindstack_poison_malloc test_libunwindstack_poison_malloc.cpp)
+    target_link_libraries(test_libunwindstack_poison_malloc ${TEST_LIBRARIES})
+    target_link_libraries(test_libunwindstack_poison_malloc poison_malloc)
+    add_test(NAME libunwindstack_poison_malloc COMMAND test_libunwindstack_poison_malloc)
 endif()
