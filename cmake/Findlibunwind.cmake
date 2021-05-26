@@ -24,6 +24,7 @@ else (LIBUNWIND_LIBRARIES AND LIBUNWIND_INCLUDE_DIR)
       libunwind.h
     PATHS
       ${LIBUNWIND_DIR}
+      ${LIBUNWIND_DIR}/include
       /usr/include/libunwind
       /usr/include
       /usr/local/include
