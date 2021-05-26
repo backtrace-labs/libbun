@@ -10,17 +10,15 @@ target_compile_features(bun PRIVATE c_std_11)
 target_include_directories(bun PUBLIC ../include)
 target_link_libraries(bun PUBLIC pthread)
 
-target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_NONE)
-
-if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
-    target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_X86_64)
-elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
-    target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_X86)
-elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm")
-    target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_ARM)
-elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
-    target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_ARM64)
-else()
-    target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_UNKNOWN)
+if(LIBUNWIND_ENABLED)
+    find_package(libunwind REQUIRED)
+    target_compile_definitions(bun PUBLIC BUN_LIBUNWIND_ENABLED)
+    target_include_directories(bun PRIVATE ${LIBUNWIND_INCLUDE_DIR})
+    target_link_libraries(bun PUBLIC ${LIBUNWIND_LIBRARIES})
+    list(APPEND BUNWIND_SOURCES
+        backend/libunwind/bun_libunwind.h
+        backend/libunwind/bun_libunwind.c
+    )
 endif()
+
 target_sources(bun PRIVATE ${BUNWIND_SOURCES})

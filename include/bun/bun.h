@@ -39,6 +39,9 @@ extern "C" {
  */
 enum bun_unwind_backend {
     BUN_BACKEND_NONE = -1,
+#if defined(BUN_LIBUNWIND_ENABLED)
+    BUN_BACKEND_LIBUNWIND = 0,
+#endif /* BUN_LIBUNWIND_ENABLED */
     BUN_BACKEND_DEFAULT = BUN_DETECTED_SYSTEM_BACKEND
 };
 
