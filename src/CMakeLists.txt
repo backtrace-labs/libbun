@@ -47,6 +47,18 @@ if(LIBBACKTRACE_FOUND)
     )
 endif()
 
+if(LIBUNWINDSTACK_ENABLED)
+    add_subdirectory("external/libunwindstack-ndk/cmake/")
+    target_include_directories(bun PRIVATE ../external/libunwindstack-ndk/include)
+    target_compile_definitions(bun PUBLIC BUN_LIBUNWINDSTACK_ENABLED)
+    target_link_libraries(bun PRIVATE unwindstack)
+    list(APPEND BUNWIND_SOURCES
+        backend/libunwindstack/bun_libunwindstack.c
+        backend/libunwindstack/bun_libunwindstack.h
+    )
+endif()
+
+
 if (LIBUNWIND_FOUND)
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBUNWIND)
 elseif (LIBBACKTRACE_FOUND)

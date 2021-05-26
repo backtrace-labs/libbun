@@ -10,6 +10,9 @@
 #if defined(BUN_LIBBACKTRACE_ENABLED)
 #include "backend/libbacktrace/bun_libbacktrace.h"
 #endif /* BUN_LIBBACKTRACE_ENABLED */
+#if defined(BUN_LIBUNWINDSTACK_ENABLED)
+#include "backend/libunwindstack/bun_libunwindstack.h"
+#endif /* BUN_LIBUNWINDSTACK_ENABLED */
 
 bool
 bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
@@ -24,6 +27,10 @@ bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
         case BUN_BACKEND_LIBBACKTRACE:
             return bun_internal_initialize_libbacktrace(handle);
 #endif /* BUN_LIBBACKTRACE_ENABLED */
+#if defined(BUN_LIBUNWINDSTACK_ENABLED)
+        case BUN_BACKEND_LIBUNWINDSTACK:
+            return bun_internal_initialize_libunwindstack(handle);
+#endif /* BUN_LIBUNWINDSTACK_ENABLED */
         default:
             return false;
     }
