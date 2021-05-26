@@ -5,10 +5,6 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
-if(NOT LIBUNWIND_ENABLED)
-    set(LIBUNWIND_ENABLED FALSE)
-endif()
-
 add_subdirectory(src)
 
 if(BUILD_TESTING)

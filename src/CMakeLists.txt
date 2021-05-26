@@ -8,6 +8,7 @@ list(APPEND BUNWIND_SOURCES
 
 add_library(bun STATIC)
 target_compile_features(bun PRIVATE c_std_11)
+target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
 target_link_libraries(bun PUBLIC pthread)
 
@@ -17,7 +18,9 @@ if(NOT LIBUNWIND_FOUND AND LIBUNWIND_ENABLED)
     message(FATAL_ERROR "libunwind not found")
 endif()
 
-if(LIBUNWIND_FOUND)
+# libunwind
+if(LIBUNWIND_ENABLED)
+    find_package(libunwind REQUIRED)
     target_compile_definitions(bun PUBLIC BUN_LIBUNWIND_ENABLED)
     target_include_directories(bun PRIVATE ${LIBUNWIND_INCLUDE_DIR})
     target_link_libraries(bun PUBLIC ${LIBUNWIND_LIBRARIES})
@@ -27,8 +30,28 @@ if(LIBUNWIND_FOUND)
     )
 endif()
 
+find_package(libbacktrace)
+
+if(NOT LIBBACKTRACE_FOUND AND BUN_LIBBACKTRACE_ENABLED)
+    message(FATAL_ERROR "libbacktrace not found")
+endif()
+
+# message("LIBBACKTRACE_FOUND: ${LIBBACKTRACE_FOUND}")
+# libbacktrace
+if(LIBBACKTRACE_FOUND)
+    target_compile_definitions(bun PUBLIC BUN_LIBBACKTRACE_ENABLED)
+    target_include_directories(bun PRIVATE ${LIBBACKTRACE_INCLUDE_DIR})
+    target_link_libraries(bun PUBLIC ${LIBBACKTRACE_LIBRARIES})
+    list(APPEND BUNWIND_SOURCES
+        backend/libbacktrace/bun_libbacktrace.c
+        backend/libbacktrace/bun_libbacktrace.h
+    )
+endif()
+
 if (LIBUNWIND_FOUND)
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBUNWIND)
+elseif (LIBBACKTRACE_FOUND)
+    target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBBACKTRACE)
 else()
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_NONE)
 endif()

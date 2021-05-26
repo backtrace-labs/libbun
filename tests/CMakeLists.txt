@@ -36,3 +36,9 @@ if (LIBUNWIND_ENABLED)
     set_property(TEST libunwind_poison_malloc PROPERTY
         ENVIRONMENT LD_PRELOAD=./helper/poison_malloc/libpoison_malloc.so)
 endif()
+
+if (LIBBACKTRACE_ENABLED)
+    add_executable(test_libbacktrace test_libbacktrace.cpp)
+    target_link_libraries(test_libbacktrace ${TEST_LIBRARIES})
+    add_test(NAME libbacktrace COMMAND test_libbacktrace)
+endif()
