@@ -1,3 +1,4 @@
+#pragma once
 /*
  * Copyright (c) 2021 Backtrace I/O, Inc.
  *
@@ -20,14 +21,12 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#pragma once
+#include <stdbool.h>
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-
-#include <stdbool.h>
-#include <stddef.h>
 
 /*
  * This library offers a common API over a set of popular unwinding libraries.
@@ -39,16 +38,7 @@ extern "C" {
  */
 enum bun_unwind_backend
 {
-#if defined(BUN_LIBUNWIND_ENABLED)
-    BUN_BACKEND_LIBUNWIND = 0,
-#endif /* BUN_LIBUNWIND_ENABLED */
-#if defined(BUN_LIBBACKTRACE_ENABLED)
-    BUN_BACKEND_LIBBACKTRACE = 1,
-#endif /* BUN_LIBBACKTRACE_ENABLED */
-#if defined(BUN_LIBUNWINDSTACK_ENABLED)
-    BUN_BACKEND_LIBUNWINDSTACK = 2,
-#endif /* BUN_LIBUNWINDSTACK_ENABLED */
-    BUN_BACKEND_EMPTY = -1
+    BUN_BACKEND_NONE = -1
 };
 
 /*
@@ -77,7 +67,7 @@ struct bun_config
     void *buffer;
     enum bun_architecture arch;
 };
-#define BUN_CONFIG_INITIALIZE { BUN_BACKEND_EMPTY, 0, NULL, BUN_ARCH_UNKNOWN }
+#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_NONE, 0, NULL, BUN_ARCH_UNKNOWN }
 
 /*
  * Opaque handle for the unwinding object.
@@ -86,7 +76,7 @@ struct bun_handle;
 typedef struct bun_handle bun_t;
 
 /*
- * The initialization function. NULL is returned on failure
+ * Returns a freshly created unwinder for the config, or NULL on failure.
  */
 bun_t *bun_create(struct bun_config *);
 /*
@@ -101,8 +91,7 @@ void bun_destroy(bun_t *);
 enum bun_unwind_result
 {
     BUN_UNWIND_FAILURE,
-    BUN_UNWIND_SUCCESS,
-    BUN_UNWIND_PARTIAL
+    BUN_UNWIND_SUCCESS
 };
 
 /*
@@ -111,7 +100,8 @@ enum bun_unwind_result
  * second and third arguments, they're set with the buffer addres and the
  * actual written payload size, which can be less than the buffer size
  */
-enum bun_unwind_result bun_unwind(bun_t *, void **, size_t *);
+enum bun_unwind_result bun_unwind(bun_t *handle, void **opt_out_buffer,
+    size_t *opt_out_size);
 
 /*
  * This function registers signal handlers for the following signals:

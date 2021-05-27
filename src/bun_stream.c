@@ -1,6 +1,8 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
+#include <endian.h>
 #include <unistd.h>
 #include <sys/syscall.h>
 
@@ -8,82 +10,96 @@
 #error "SYS_gettid unavailable on this system"
 #endif
 
-#define gettid() ((pid_t)syscall(SYS_gettid))
-
 #include <bun/stream.h>
-
-static void strcpy_null(char *dest, const char *src);
-static size_t strlen_null(const char *str);
+#include <bun_structures.h>
 
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 
-struct bun_writer_reader *
+static pid_t gettid();
+
+static uint16_t read_le_16(struct bun_reader *src);
+static void write_le_16(struct bun_writer *dest, uint16_t value);
+static uint64_t read_le_64(struct bun_reader *src);
+static void write_le_64(struct bun_writer *dest, uint64_t value);
+
+struct bun_writer *
 bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 {
-    struct bun_writer_reader *writer = malloc(sizeof(struct bun_writer_reader));
+    struct bun_writer *writer = NULL;
     struct bun_payload_header *hdr;
-
-    if (writer == NULL)
-        return NULL;
-
-    writer->buffer = buffer;
-    writer->cursor = buffer + sizeof(struct bun_payload_header);
-    writer->size = size;
-
-    hdr = buffer;
-
-    hdr->magic = BUN_HEADER_MAGIC;
-    hdr->architecture = arch;
-    hdr->version = 1;
-    hdr->size = sizeof(*hdr);
-    hdr->tid = (uint32_t)gettid();
-    hdr->backend = BUN_BACKEND_EMPTY;
-
-    return writer;
-}
-
-struct bun_writer_reader *
-bun_create_reader(void *buffer, size_t size)
-{
-    struct bun_writer_reader *reader;
-    struct bun_payload_header *header;
 
     if (size < sizeof(struct bun_payload_header))
         return NULL;
 
-    reader = malloc(sizeof(struct bun_writer_reader));
+    writer = malloc(sizeof(struct bun_writer));
+    if (writer == NULL)
+        return NULL;
+
+    writer->data.buffer = (char *)buffer;
+    writer->data.cursor = (char *)buffer + sizeof(struct bun_payload_header);
+    writer->data.size = size;
+
+    hdr = buffer;
+
+    hdr->magic = htole64(BUN_HEADER_MAGIC);
+    hdr->version = htole16(1);
+    hdr->architecture = htole16(arch);
+    hdr->size = htole32(sizeof(*hdr));
+    hdr->tid = htole32(gettid());
+    hdr->backend = htole16(BUN_BACKEND_NONE);
+
+    return writer;
+}
+
+struct bun_reader *
+bun_create_reader(void *buffer, size_t size)
+{
+    struct bun_reader *reader;
+    struct bun_payload_header *header = buffer;
+
+    if (size < sizeof(struct bun_payload_header))
+        return NULL;
+
+    if (le64toh(header->magic) != BUN_HEADER_MAGIC)
+        return NULL;
+
+    reader = malloc(sizeof(struct bun_reader));
 
     if (reader == NULL)
         return NULL;
 
-    reader->buffer = buffer;
-    reader->cursor = buffer + sizeof(struct bun_payload_header);
-    reader->size = size;
-
-    header = buffer;
-    if (header->magic != BUN_HEADER_MAGIC) {
-        free(reader);
-        return NULL;
-    }
+    reader->data.buffer = (char *)buffer;
+    reader->data.cursor = (char *)buffer + sizeof(struct bun_payload_header);
+    reader->data.size = size;
 
     return reader;
 }
 
 void
-bun_free_writer_reader(struct bun_writer_reader *obj)
+bun_free_writer(struct bun_writer *obj)
 {
     free(obj);
+    return;
+}
+
+void
+bun_free_reader(struct bun_reader *obj)
+{
+    free(obj);
+    return;
 }
 
 size_t
-bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
+bun_frame_write(struct bun_writer *writer, const struct bun_frame *frame)
 {
     size_t symbol_length;
     size_t filename_length;
-    size_t buffer_available = writer->size - (writer->cursor - writer->buffer);
+    size_t buffer_available = writer->data.size - (writer->data.cursor -
+        writer->data.buffer);
     size_t would_write;
     size_t register_size = sizeof(uint16_t) + sizeof(uint64_t);
-    struct bun_payload_header *header = writer->buffer;
+    struct bun_payload_header *header = (void *)writer->data.buffer;
+    uint64_t temporary_uint64;
 
     if (frame->symbol_length == 0 && frame->symbol != NULL) {
         symbol_length = strlen(frame->symbol);
@@ -97,110 +113,98 @@ bun_frame_write(struct bun_writer_reader *writer, const struct bun_frame *frame)
         filename_length = frame->filename_length;
     }
 
+    /* 2 for null bytes */
     would_write = symbol_length + filename_length + 2 + sizeof(frame->addr) +
         sizeof(frame->line_no) + sizeof(frame->register_count) +
         frame->register_count * register_size;
 
-    /* 2 for null bytes */
     if (would_write > buffer_available)
         return 0;
 
-    memcpy(writer->cursor, &frame->addr, sizeof(frame->addr));
-    writer->cursor += sizeof(frame->addr);
+    write_le_64(writer, frame->addr);
+    write_le_64(writer, frame->line_no);
+    write_le_64(writer, frame->offset);
 
-    memcpy(writer->cursor, &frame->line_no, sizeof(frame->line_no));
-    writer->cursor += sizeof(frame->line_no);
+    strcpy(writer->data.cursor, frame->symbol ? frame->symbol : "");
+    writer->data.cursor += symbol_length + 1;
 
-    memcpy(writer->cursor, &frame->offset, sizeof(frame->offset));
-    writer->cursor += sizeof(frame->offset);
+    strcpy(writer->data.cursor, frame->filename ? frame->filename : "");
+    writer->data.cursor += filename_length + 1;
 
-    strcpy_null(writer->cursor, frame->symbol);
-    writer->cursor += symbol_length + 1;
-
-    strcpy_null(writer->cursor, frame->filename);
-    writer->cursor += filename_length + 1;
-
-    memcpy(writer->cursor, &frame->register_count,
-        sizeof(frame->register_count));
-    writer->cursor += sizeof(frame->register_count);
+    write_le_16(writer, frame->register_count);
 
     if (frame->register_count > 0) {
-        memcpy(writer->cursor, frame->register_data,
+        memcpy(writer->data.cursor, frame->register_data,
             frame->register_count * register_size);
-        writer->cursor += frame->register_count * register_size;
+        writer->data.cursor += frame->register_count * register_size;
     }
 
-    header->size += would_write;
+    header->size = htole32(le32toh(header->size) + would_write);
     return would_write;
 }
 
-bool bun_frame_read(struct bun_writer_reader *reader, struct bun_frame *frame)
+bool bun_frame_read(struct bun_reader *reader, struct bun_frame *frame)
 {
-    struct bun_payload_header *header = reader->buffer;
+    struct bun_payload_header *header = (void *)reader->data.buffer;
     size_t register_size = sizeof(uint16_t) + sizeof(uint64_t);
-    ptrdiff_t buffer_available = reader->size - (reader->cursor - reader->buffer);
-
+    ptrdiff_t buffer_available = reader->data.size - (reader->data.cursor -
+        reader->data.buffer);
     (void) header;
 
     if (buffer_available <= 0)
         return false;
 
-    memcpy(&frame->addr, reader->cursor, sizeof(frame->addr));
-    reader->cursor += sizeof(frame->addr);
+    frame->addr = read_le_64(reader);
+    frame->line_no = read_le_64(reader);
+    frame->offset = read_le_64(reader);
 
-    memcpy(&frame->line_no, reader->cursor, sizeof(frame->line_no));
-    reader->cursor += sizeof(frame->line_no);
+    frame->symbol = reader->data.cursor;
+    reader->data.cursor += strlen(frame->symbol) + 1;
 
-    memcpy(&frame->offset, reader->cursor, sizeof(frame->offset));
-    reader->cursor += sizeof(frame->offset);
+    frame->filename = reader->data.cursor;
+    reader->data.cursor += strlen(frame->filename) + 1;
 
-    frame->symbol = reader->cursor;
-    reader->cursor += strlen_null(frame->symbol) + 1;
-
-    frame->filename = reader->cursor;
-    reader->cursor += strlen_null(frame->filename) + 1;
-
-    memcpy(&frame->register_count, reader->cursor, sizeof(uint16_t));
-    reader->cursor += sizeof(frame->register_count);
+    frame->register_count = read_le_16(reader);
 
     if (frame->register_count > 0) {
-        frame->register_data = reader->cursor;
+        frame->register_data = reader->data.cursor;
         frame->register_buffer_size = frame->register_count * register_size;
-        reader->cursor += frame->register_buffer_size;
+        reader->data.cursor += frame->register_buffer_size;
     }
 
     return true;
 }
 
 void
-bun_header_tid_set(struct bun_writer_reader *writer, uint32_t tid)
+bun_header_tid_set(struct bun_writer *writer, uint32_t tid)
 {
-    struct bun_payload_header *header = writer->buffer;
+    struct bun_payload_header *header = (void *)writer->data.buffer;
 
-    header->tid = tid;
+    header->tid = htole32(tid);
 }
 
 uint32_t
-bun_header_tid_get(const struct bun_writer_reader *reader)
+bun_header_tid_get(const struct bun_reader *reader)
 {
-    const struct bun_payload_header *header = reader->buffer;
+    const struct bun_payload_header *header = (void *)reader->data.buffer;
 
-    return header->tid;
+    return le32toh(header->tid);
 }
 
 void
-bun_header_backend_set(struct bun_writer_reader *writer, uint16_t backend)
+bun_header_backend_set(struct bun_writer *writer, uint16_t backend)
 {
-    struct bun_payload_header *header = writer->buffer;
+    struct bun_payload_header *header = (void *)writer->data.buffer;
 
-    header->backend = backend;
+    header->backend = htole16(backend);
 }
 
-uint16_t bun_header_backend_get(const struct bun_writer_reader *reader)
+uint16_t
+bun_header_backend_get(const struct bun_reader *reader)
 {
-    const struct bun_payload_header *header = reader->buffer;
+    const struct bun_payload_header *header = (void *)reader->data.buffer;
 
-    return header->backend;
+    return le16toh(header->backend);
 }
 
 bool
@@ -218,8 +222,12 @@ bun_frame_register_append(struct bun_frame *frame, uint16_t reg,
         return false;
 
     buffer = frame->register_data + register_size * frame->register_count;
+
+    reg = htole16(reg);
     memcpy(buffer, &reg, sizeof(reg));
     buffer += sizeof(reg);
+
+    value = htole16(value);
     memcpy(buffer, &value, sizeof(value));
 
     frame->register_count++;
@@ -244,20 +252,48 @@ bun_frame_register_get(struct bun_frame *frame, uint16_t index, uint16_t *reg,
     return true;
 }
 
-static void
-strcpy_null(char *dest, const char *src)
+static pid_t
+gettid()
 {
-    if (src == NULL)
-        strcpy(dest, "");
-    else
-        strcpy(dest, src);
+    return (pid_t)syscall(SYS_gettid);
 }
 
-static size_t
-strlen_null(const char *str)
+static uint16_t
+read_le_16(struct bun_reader *src)
 {
-    if (str == NULL)
-        return 0;
-    else
-        return strlen(str);
+    uint16_t value;
+
+    memcpy(&value, src->data.cursor, sizeof(value));
+    src->data.cursor += sizeof(value);
+    return le16toh(value);
+}
+
+static void
+write_le_16(struct bun_writer *dest, uint16_t value)
+{
+    uint16_t le_value = htole16(value);
+
+    memcpy(dest->data.cursor, &le_value, sizeof(le_value));
+    dest->data.cursor += sizeof(le_value);
+    return;
+}
+
+static uint64_t
+read_le_64(struct bun_reader *src)
+{
+    uint64_t value;
+
+    memcpy(&value, src->data.cursor, sizeof(value));
+    src->data.cursor += sizeof(value);
+    return le64toh(value);
+}
+
+static void
+write_le_64(struct bun_writer *dest, uint64_t value)
+{
+    uint64_t le_value = htole64(value);
+
+    memcpy(dest->data.cursor, &le_value, sizeof(le_value));
+    dest->data.cursor += sizeof(le_value);
+    return;
 }
