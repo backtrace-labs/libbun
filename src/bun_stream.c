@@ -22,18 +22,14 @@ static void write_le_16(struct bun_writer *dest, uint16_t value);
 static uint64_t read_le_64(struct bun_reader *src);
 static void write_le_64(struct bun_writer *dest, uint64_t value);
 
-struct bun_writer *
-bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
+bool
+bun_writer_init(struct bun_writer * writer, void *buffer, size_t size,
+    enum bun_architecture arch)
 {
-    struct bun_writer *writer = NULL;
     struct bun_payload_header *hdr;
 
     if (size < sizeof(struct bun_payload_header))
-        return NULL;
-
-    writer = malloc(sizeof(struct bun_writer));
-    if (writer == NULL)
-        return NULL;
+        return false;
 
     writer->data.buffer = (char *)buffer;
     writer->data.cursor = (char *)buffer + sizeof(struct bun_payload_header);
@@ -41,52 +37,32 @@ bun_create_writer(void *buffer, size_t size, enum bun_architecture arch)
 
     hdr = buffer;
 
-    hdr->magic = htole64(BUN_HEADER_MAGIC);
-    hdr->version = htole16(1);
-    hdr->architecture = htole16(arch);
-    hdr->size = htole32(sizeof(*hdr));
-    hdr->tid = htole32(gettid());
-    hdr->backend = htole16(BUN_BACKEND_NONE);
+    hdr->magic = BUN_HEADER_MAGIC;
+    hdr->version = 1;
+    hdr->architecture = arch;
+    hdr->size = sizeof(*hdr);
+    hdr->tid = gettid();
+    hdr->backend = BUN_BACKEND_NONE;
 
-    return writer;
+    return true;
 }
 
-struct bun_reader *
-bun_create_reader(void *buffer, size_t size)
+bool
+bun_reader_init(struct bun_reader *reader, void *buffer, size_t size)
 {
-    struct bun_reader *reader;
     struct bun_payload_header *header = buffer;
 
     if (size < sizeof(struct bun_payload_header))
-        return NULL;
+        return false;
 
-    if (le64toh(header->magic) != BUN_HEADER_MAGIC)
-        return NULL;
-
-    reader = malloc(sizeof(struct bun_reader));
-
-    if (reader == NULL)
-        return NULL;
+    if (header->magic != BUN_HEADER_MAGIC)
+        return false;
 
     reader->data.buffer = (char *)buffer;
     reader->data.cursor = (char *)buffer + sizeof(struct bun_payload_header);
     reader->data.size = size;
 
-    return reader;
-}
-
-void
-bun_free_writer(struct bun_writer *obj)
-{
-    free(obj);
-    return;
-}
-
-void
-bun_free_reader(struct bun_reader *obj)
-{
-    free(obj);
-    return;
+    return true;
 }
 
 size_t
@@ -139,7 +115,7 @@ bun_frame_write(struct bun_writer *writer, const struct bun_frame *frame)
         writer->data.cursor += frame->register_count * register_size;
     }
 
-    header->size = htole32(le32toh(header->size) + would_write);
+    header->size += would_write;
     return would_write;
 }
 
@@ -180,7 +156,7 @@ bun_header_tid_set(struct bun_writer *writer, uint32_t tid)
 {
     struct bun_payload_header *header = (void *)writer->data.buffer;
 
-    header->tid = htole32(tid);
+    header->tid = tid;
 }
 
 uint32_t
@@ -188,7 +164,7 @@ bun_header_tid_get(const struct bun_reader *reader)
 {
     const struct bun_payload_header *header = (void *)reader->data.buffer;
 
-    return le32toh(header->tid);
+    return header->tid;
 }
 
 void
@@ -196,7 +172,7 @@ bun_header_backend_set(struct bun_writer *writer, uint16_t backend)
 {
     struct bun_payload_header *header = (void *)writer->data.buffer;
 
-    header->backend = htole16(backend);
+    header->backend = backend;
 }
 
 uint16_t
@@ -204,7 +180,7 @@ bun_header_backend_get(const struct bun_reader *reader)
 {
     const struct bun_payload_header *header = (void *)reader->data.buffer;
 
-    return le16toh(header->backend);
+    return header->backend;
 }
 
 bool
