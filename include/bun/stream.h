@@ -55,14 +55,15 @@ typedef struct bun_writer bun_writer_t;
  * Stream header, used to determine the payload version, its size and its
  * architecture. Values are expected to use little endian encoding.
  */
-struct bun_payload_header {
+struct __attribute((scalar_storage_order("little-endian")))
+bun_payload_header {
     uint64_t magic;
     uint16_t version;
     uint16_t architecture;
     uint32_t size;
     uint32_t tid;
     uint16_t backend;
-} __attribute((scalar_storage_order("little-endian")));
+};
 static_assert(sizeof(struct bun_payload_header) == 24,
     "Expected the header to be 24 bytes long");
 
