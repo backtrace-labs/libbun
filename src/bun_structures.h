@@ -30,8 +30,8 @@ extern "C" {
 #endif
 
 /*
- * bun_handle is the underlying type of the bun_t handle type. It stores the
- * configuration data used to generate reports.
+ * bun_handle is the underlying type of the bun_handle_t handle type. It stores
+ * the configuration data used to generate reports.
  */
 struct bun_handle
 {

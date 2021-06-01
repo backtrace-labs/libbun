@@ -18,7 +18,7 @@ struct handler_pair
 
 static struct handler_pair handlers[32];
 
-static bun_t *global_handle;
+static bun_handle_t *global_handle;
 
 static void
 signal_handler(int signum)
@@ -72,7 +72,7 @@ set_signal_handler(int signum, void(*new_handler)(int))
 }
 
 bool
-bun_register_signal_handers(bun_t *handle, void(*new_handler)(int))
+bun_register_signal_handers(bun_handle_t *handle, void(*new_handler)(int))
 {
     if (handle == NULL)
         return false;

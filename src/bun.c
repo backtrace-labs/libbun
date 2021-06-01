@@ -6,7 +6,7 @@
 
 #include <bun_structures.h>
 
-bun_t *
+bun_handle_t *
 bun_create(struct bun_config *config)
 {
     switch (config->unwind_backend) {
@@ -16,7 +16,7 @@ bun_create(struct bun_config *config)
 }
 
 void
-bun_destroy(bun_t *handle)
+bun_destroy(bun_handle_t *handle)
 {
     if (handle == NULL)
         return;
@@ -30,7 +30,7 @@ bun_destroy(bun_t *handle)
 }
 
 enum bun_unwind_result
-bun_unwind(bun_t *handle, void **buf, size_t *buf_size)
+bun_unwind(bun_handle_t *handle, void **buf, size_t *buf_size)
 {
     size_t bytes_written;
 

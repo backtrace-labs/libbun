@@ -73,16 +73,16 @@ struct bun_config
  * Opaque handle for the unwinding object.
  */
 struct bun_handle;
-typedef struct bun_handle bun_t;
+typedef struct bun_handle bun_handle_t;
 
 /*
  * Returns a freshly created unwinder for the config, or NULL on failure.
  */
-bun_t *bun_create(struct bun_config *);
+bun_handle_t *bun_create(struct bun_config *);
 /*
  * The de-initialization function.
  */
-void bun_destroy(bun_t *);
+void bun_destroy(bun_handle_t *);
 
 /*
  * Encodes the result of the unwind function. BUN_UNWIND_PARTIAL is currently
@@ -100,7 +100,7 @@ enum bun_unwind_result
  * second and third arguments, they're set with the buffer addres and the
  * actual written payload size, which can be less than the buffer size
  */
-enum bun_unwind_result bun_unwind(bun_t *handle, void **opt_out_buffer,
+enum bun_unwind_result bun_unwind(bun_handle_t *handle, void **opt_out_buffer,
     size_t *opt_out_size);
 
 /*
@@ -111,7 +111,7 @@ enum bun_unwind_result bun_unwind(bun_t *handle, void **opt_out_buffer,
  * call, they're reregistered and the signal is reraised to invoke the previous
  * handler.
  */
-bool bun_register_signal_handers(bun_t *, void(*)(int));
+bool bun_register_signal_handers(bun_handle_t *, void(*)(int));
 
 #ifdef __cplusplus
 }
