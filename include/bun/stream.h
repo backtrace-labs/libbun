@@ -55,8 +55,7 @@ typedef struct bun_writer bun_writer_t;
  * Stream header, used to determine the payload version, its size and its
  * architecture. Values are expected to use little endian encoding.
  */
-struct bun_payload_header
-{
+struct bun_payload_header {
     uint64_t magic;
     uint16_t version;
     uint16_t architecture;
@@ -73,8 +72,7 @@ static_assert(sizeof(struct bun_payload_header) == 24,
  * That is, when writing the user needs to ensure that the pointer is freed, and
  * when reading, the user needs not to free the received pointers.
  */
-struct bun_frame
-{
+struct bun_frame {
     uint64_t addr;
     const char *symbol;
     size_t symbol_length;

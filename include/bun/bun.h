@@ -36,8 +36,7 @@ extern "C" {
  * Enumeration used to select the unwinding backend library. The library must
  * be present on the system.
  */
-enum bun_unwind_backend
-{
+enum bun_unwind_backend {
     BUN_BACKEND_NONE = -1
 };
 
@@ -45,8 +44,7 @@ enum bun_unwind_backend
  * Enumeration used to determine the target architecture. Currently only used
  * for informational purposes.
  */
-enum bun_architecture
-{
+enum bun_architecture {
     BUN_ARCH_X86,
     BUN_ARCH_X86_64,
     BUN_ARCH_ARM,
@@ -60,8 +58,7 @@ enum bun_architecture
  * *does not* take ownership of the memory passed, so that it is possible to
  * pass a statically allocated buffer
  */
-struct bun_config
-{
+struct bun_config {
     enum bun_unwind_backend unwind_backend;
     size_t buffer_size;
     void *buffer;
@@ -88,8 +85,7 @@ void bun_destroy(bun_handle_t *);
  * Encodes the result of the unwind function. BUN_UNWIND_PARTIAL is currently
  * unused.
  */
-enum bun_unwind_result
-{
+enum bun_unwind_result {
     BUN_UNWIND_FAILURE,
     BUN_UNWIND_SUCCESS
 };
