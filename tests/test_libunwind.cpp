@@ -46,7 +46,7 @@ TEST(libunwind, unwinding) {
     ASSERT_TRUE(data);
     ASSERT_NE(size, 0);
 
-    bun_reader_t reader;
+    struct bun_reader reader;
     bun_reader_init(&reader, data, size);
 
     bun_payload_header *header = reinterpret_cast<bun_payload_header *>(buf.data());
