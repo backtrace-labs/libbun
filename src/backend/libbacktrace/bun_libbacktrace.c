@@ -29,6 +29,7 @@ static int full_callback(void *data, uintptr_t pc, const char *filename,
 static struct backtrace_state *get_backtrace_state()
 {
     static struct backtrace_state *state;
+
     if (state == NULL)
         state = backtrace_create_state(
             NULL /*argv[0]*/,
@@ -45,7 +46,7 @@ static void libbacktrace_destroy()
 
 bool bun_internal_initialize_libbacktrace(struct bun_handle *handle)
 {
-    /* ensure we precompute the state for further operations */
+    /* Ensure we precompute the state for further operations. */
     (void) get_backtrace_state();
     handle->unwind = libbacktrace_unwind;
     handle->destroy = libbacktrace_destroy;
