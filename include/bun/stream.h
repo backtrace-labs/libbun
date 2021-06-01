@@ -62,7 +62,7 @@ struct bun_payload_header {
     uint32_t size;
     uint32_t tid;
     uint16_t backend;
-} __attribute__((scalar_storage_order("little-endian")));
+} __attribute((scalar_storage_order("little-endian")));
 static_assert(sizeof(struct bun_payload_header) == 24,
     "Expected the header to be 24 bytes long");
 
