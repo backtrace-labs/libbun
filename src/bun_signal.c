@@ -12,9 +12,7 @@ struct handler_pair
 {
     struct sigaction current;
     struct sigaction old;
-    void (*overridden_handler)(int);
-    bool overridden;
-    bool has_current;
+    void (*signal_handler)(int);
     bool has_old;
 };
 
@@ -23,7 +21,7 @@ static struct handler_pair handlers[32];
 static bun_handle_t *global_handle;
 
 static void
-signal_handler(int signum)
+signal_handler(int signum, siginfo_t *info, void *ucontext)
 {
     struct handler_pair *hp = NULL;
 
@@ -32,15 +30,14 @@ signal_handler(int signum)
 
     hp = &handlers[signum];
 
-    if (hp->overridden == false)
-        return;
+    if (hp->signal_handler != NULL) {
+        hp->signal_handler(signum);
+    }
 
-    if (hp->has_current == true)
-        hp->overridden_handler(signum);
-
-    if (hp->has_old == true &&
-        sigaction(signum, &hp->old, NULL) == 0) {
-        raise(signum);
+    if (hp->has_old == true) {
+        if (hp->old.sa_flags & SA_SIGINFO) {
+            hp->old.sa_sigaction(signum, info, ucontext);
+        }
     }
 
     return;
@@ -56,18 +53,16 @@ set_signal_handler(int signum, void(*new_handler)(int))
 
     hp = &handlers[signum];
 
-    hp->current.sa_handler = signal_handler;
+    hp->current.sa_sigaction = signal_handler;
     sigemptyset(&hp->current.sa_mask);
-    hp->current.sa_flags = 0;
-    hp->overridden = true;
-    hp->overridden_handler = new_handler;
+    hp->current.sa_flags = SA_SIGINFO;
 
     if (sigaction(signum, NULL, &hp->old) == 0) {
         hp->has_old = true;
     }
 
     if (sigaction(signum, &hp->current, NULL) == 0) {
-        hp->has_current = true;
+        hp->signal_handler = new_handler;
     }
 
     return;
