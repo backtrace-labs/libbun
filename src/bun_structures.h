@@ -38,8 +38,7 @@ extern "C" {
 struct bun_handle
 {
     size_t (*unwind_function)(void *);
-    void (*free_context)(void *);
-    void *unwinder_context;
+    void (*destroy)(struct bun_handle *);
     size_t unwind_buffer_size;
     void *unwind_buffer;
     enum bun_architecture arch;

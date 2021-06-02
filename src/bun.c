@@ -18,10 +18,17 @@ bun_create(struct bun_config *config)
     if (ret == NULL)
         return NULL;
 
+    if (ret->destroy == NULL) {
+        /*
+         * if the backend allocated the structure, but did not set the
+         * destructor, we're in trouble.
+         */
+        assert(false);
+        return NULL;
+    }
+
     if (pthread_mutex_init(&ret->lock, NULL) != 0) {
-        if (ret->free_context != NULL)
-            ret->free_context(ret->unwinder_context);
-        free(ret);
+        ret->destroy(ret);
         return NULL;
     }
 
@@ -34,13 +41,9 @@ bun_destroy(bun_handle_t *handle)
     if (handle == NULL)
         return;
 
-    if (handle->free_context != NULL)
-        handle->free_context(handle->unwinder_context);
-
     pthread_mutex_destroy(&handle->lock);
 
-    free(handle);
-
+    handle->destroy(handle);
     return;
 }
 
