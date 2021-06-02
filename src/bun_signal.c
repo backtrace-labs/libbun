@@ -6,6 +6,8 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
+#include "bun_structures.h"
+
 struct handler_pair
 {
     struct sigaction current;
@@ -37,7 +39,7 @@ signal_handler(int signum)
         hp->overridden_handler(signum);
 
     if (hp->has_old == true &&
-        sigaction(signum, &hp->old, NULL) < 0) {
+        sigaction(signum, &hp->old, NULL) == 0) {
         raise(signum);
     }
 
@@ -77,8 +79,12 @@ bun_register_signal_handers(bun_handle_t *handle, void(*new_handler)(int))
     if (handle == NULL)
         return false;
 
-    if (global_handle != NULL && global_handle != handle)
+    pthread_mutex_lock(&handle->lock);
+
+    if (global_handle != NULL && global_handle != handle) {
+        pthread_mutex_unlock(&handle->lock);
         return false;
+    }
 
     global_handle = handle;
 
@@ -87,5 +93,6 @@ bun_register_signal_handers(bun_handle_t *handle, void(*new_handler)(int))
     set_signal_handler(SIGSEGV, new_handler);
     set_signal_handler(SIGILL, new_handler);
     set_signal_handler(SIGSYS, new_handler);
+    pthread_mutex_unlock(&handle->lock);
     return true;
 }

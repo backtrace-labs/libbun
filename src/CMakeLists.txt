@@ -11,5 +11,5 @@ add_library(bun STATIC)
 target_compile_features(bun PRIVATE c_std_11)
 target_include_directories(bun PUBLIC ../include)
 target_include_directories(bun PRIVATE .)
-
+target_link_libraries(bun PUBLIC pthread)
 target_sources(bun PRIVATE ${BUNWIND_SOURCES})

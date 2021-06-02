@@ -23,6 +23,8 @@
 
 #include <stddef.h>
 
+#include <pthread.h>
+
 #include <bun/bun.h>
 
 #ifdef __cplusplus
@@ -41,6 +43,7 @@ struct bun_handle
     size_t unwind_buffer_size;
     void *unwind_buffer;
     enum bun_architecture arch;
+    pthread_mutex_t lock;
 };
 
 #ifdef __cplusplus
