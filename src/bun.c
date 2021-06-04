@@ -4,7 +4,7 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
-#include <bun_structures.h>
+#include "bun_structures.h"
 
 bun_handle_t *
 bun_create(const struct bun_config *config)
