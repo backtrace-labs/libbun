@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <signal.h>
 #include <unistd.h>
+#include <stdatomic.h>
 #include <stdbool.h>
 
 #include <bun/bun.h>
@@ -12,17 +13,22 @@ struct handler_pair
 {
     struct sigaction current;
     struct sigaction old;
-    void (*signal_handler)(int);
     bool has_old;
 };
 
 static struct handler_pair handlers[32];
 
-static bun_handle_t *global_handle;
+static struct {
+    bun_handle_t *handle;
+    void *buffer;
+    size_t buffer_size;
+    atomic_flag in_use;
+} signal_data = { .in_use = ATOMIC_FLAG_INIT };
 
 static void
 signal_handler(int signum, siginfo_t *info, void *ucontext)
 {
+    bool already_in_use;
     struct handler_pair *hp = NULL;
 
     if (signum >= sizeof(handlers)/sizeof(*handlers))
@@ -30,9 +36,12 @@ signal_handler(int signum, siginfo_t *info, void *ucontext)
 
     hp = &handlers[signum];
 
-    if (hp->signal_handler != NULL) {
-        hp->signal_handler(signum);
-    }
+    /* only execute if we're not already in a signal handler */
+    already_in_use = atomic_flag_test_and_set(&signal_data.in_use);
+    if (already_in_use == false)
+        bun_unwind(signal_data.handle, signal_data.buffer,
+            signal_data.buffer_size);
+    atomic_flag_clear(&signal_data.in_use);
 
     if (hp->has_old == true) {
         if (hp->old.sa_flags & SA_SIGINFO) {
@@ -43,13 +52,13 @@ signal_handler(int signum, siginfo_t *info, void *ucontext)
     return;
 }
 
-static void
-set_signal_handler(int signum, void(*new_handler)(int))
+static int
+set_signal_handler(int signum)
 {
     struct handler_pair *hp = NULL;
 
     if (signum >= sizeof(handlers)/sizeof(*handlers))
-        return;
+        return false;
 
     hp = &handlers[signum];
 
@@ -57,37 +66,45 @@ set_signal_handler(int signum, void(*new_handler)(int))
     sigemptyset(&hp->current.sa_mask);
     hp->current.sa_flags = SA_SIGINFO;
 
-    if (sigaction(signum, NULL, &hp->old) == 0) {
+    /*
+     * Only save the old handler once. If the handle is set it means we're
+     * registering a new set of signal handlers and we don't want to stack them
+     * on top of our previous ones, and want to preserve the originals instead.
+     */
+    if (signal_data.handle == NULL && sigaction(signum, NULL, &hp->old) == 0) {
         hp->has_old = true;
+    } else {
+        return false;
     }
 
-    if (sigaction(signum, &hp->current, NULL) == 0) {
-        hp->signal_handler = new_handler;
+    if (sigaction(signum, &hp->current, NULL) != 0) {
+        return false;
     }
 
-    return;
+    return true;
 }
 
 bool
-bun_register_signal_handers(bun_handle_t *handle, void(*new_handler)(int))
+bun_sigaction_set(bun_handle_t *handle, void *buffer, size_t buffer_size)
 {
-    if (handle == NULL)
-        return false;
-
+    static int signals[] = { SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS };
     pthread_mutex_lock(&handle->lock);
 
-    if (global_handle != NULL && global_handle != handle) {
-        pthread_mutex_unlock(&handle->lock);
-        return false;
+    /*
+     * Set handlers for every signal specified in the array. If we fail to set
+     * we return false and leave the program in unspecified state to be handled
+     * by the client
+     */
+    for (size_t i = 0; i < sizeof(signals)/sizeof(*signals); i++) {
+        if (set_signal_handler(signals[i]) == false)
+            return false;
     }
 
-    global_handle = handle;
+    signal_data.handle = handle;
+    signal_data.buffer = buffer;
+    signal_data.buffer_size = buffer_size;
 
-    set_signal_handler(SIGABRT, new_handler);
-    set_signal_handler(SIGBUS, new_handler);
-    set_signal_handler(SIGSEGV, new_handler);
-    set_signal_handler(SIGILL, new_handler);
-    set_signal_handler(SIGSYS, new_handler);
     pthread_mutex_unlock(&handle->lock);
+
     return true;
 }
