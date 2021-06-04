@@ -2,4 +2,8 @@
 
 #include <bun/bun.h>
 
-bun_handle_t *_bun_initialize_libunwind(struct bun_config *);
+/*
+ * Initialize the libunwind handler backend. This function is only meant
+ * for internal use.
+ */
+bun_handle_t *bun_internal_initialize_libunwind(const struct bun_config *);

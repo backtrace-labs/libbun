@@ -15,7 +15,7 @@ bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
     switch (backend) {
 #if defined(BUN_LIBUNWIND_ENABLED)
         case BUN_BACKEND_LIBUNWIND:
-            ret = _bun_initialize_libunwind(handle);
+            ret = bun_internal_initialize_libunwind(handle);
             return true;
 #endif /* BUN_LIBUNWIND_ENABLED */
         default:

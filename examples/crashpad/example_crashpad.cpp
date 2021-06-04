@@ -37,6 +37,8 @@ startCrashHandler()
      *
      * This is the directory you will use to store and
      * queue crash data.
+     *
+     * In the example we use the current directory.
      */
     std::string db_path(".");
 
@@ -91,12 +93,8 @@ startCrashHandler()
     std::unique_ptr<CrashReportDatabase> database =
         crashpad::CrashReportDatabase::Initialize(db);
 
-    std::cerr << __LINE__ << '\n';
-
     if (database == nullptr || database->GetSettings() == NULL)
         return false;
-
-    std::cerr << __LINE__ << '\n';
 
     /* Enable automated uploads. */
     database->GetSettings()->SetUploadsEnabled(true);
@@ -106,39 +104,29 @@ startCrashHandler()
     );
 }
 
-bun_handle_t *handle;
-static void my_sighandler(int)
-{
-    void *buf;
-    size_t buf_size;
-    bun_unwind(handle, buffer, sizeof(buffer));
-    fprintf(stderr, "%p %lu\n", buf, buf_size);
-}
-
 void
 IamDummy()
 {
     std::cout << "dummy tid: " << gettid() << "\n";
-    memset((void*)(intptr_t)4, 123, 1);
+    __builtin_trap();
 }
 
 int
 main()
 {
     bun_config cfg;
+    std::vector<char> buffer(0x10000);
     memset(&cfg, 0, sizeof(cfg));
     cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    handle = bun_create(&cfg);
+    bun_handle_t *handle = bun_create(&cfg);
 
     std::cerr << startCrashHandler() << '\n';
 
     crashpad::CrashpadInfo::GetCrashpadInfo()
-        ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer, sizeof(buffer));
-    std::cerr << bun_register_signal_handers(handle, &my_sighandler) << '\n';
+        ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer.data(), buffer.size());
+    std::cerr << bun_sigaction_set(handle, buffer.data(), buffer.size()) << '\n';
 
     std::cout << "tid: " << gettid() << "\n";
-
-
 
     IamDummy();
     bun_destroy(handle);
