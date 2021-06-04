@@ -15,18 +15,6 @@ bun_create(const struct bun_config *config)
             return NULL;
     }
 
-    if (ret == NULL)
-        return NULL;
-
-    if (ret->destroy == NULL) {
-        /*
-         * if the backend allocated the structure, but did not set the
-         * destructor, we're in trouble.
-         */
-        assert(false);
-        return NULL;
-    }
-
     if (pthread_mutex_init(&ret->lock, NULL) != 0) {
         ret->destroy(ret);
         return NULL;
@@ -38,8 +26,6 @@ bun_create(const struct bun_config *config)
 void
 bun_destroy(bun_handle_t *handle)
 {
-    if (handle == NULL)
-        return;
 
     pthread_mutex_destroy(&handle->lock);
 
