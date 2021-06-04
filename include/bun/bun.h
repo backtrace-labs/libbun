@@ -77,7 +77,7 @@ typedef struct bun_handle bun_handle_t;
 /*
  * Returns a freshly created unwinder for the config, or NULL on failure.
  */
-bun_handle_t *bun_create(struct bun_config *);
+bun_handle_t *bun_create(const struct bun_config *);
 /*
  * The de-initialization function.
  */

@@ -7,7 +7,7 @@
 #include <bun_structures.h>
 
 bun_handle_t *
-bun_create(struct bun_config *config)
+bun_create(const struct bun_config *config)
 {
     bun_handle_t *ret = NULL;
     switch (config->unwind_backend) {
