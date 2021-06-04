@@ -112,7 +112,8 @@ libunwind_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
         X(X86_64_RIP);
 #endif
 #undef X
-        bun_frame_write(&writer, &frame);
+        if (bun_frame_write(&writer, &frame) == 0)
+            return 0;
     }
     return hdr->size;
 }

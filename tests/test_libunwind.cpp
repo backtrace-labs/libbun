@@ -65,3 +65,19 @@ TEST(libunwind, unwinding) {
     ASSERT_NE(dummy_line, 0);
     ASSERT_EQ(frame.offset, 0x18);
 }
+
+TEST(libunwind, tiny_buffer)
+{
+    std::vector<char> buf(sizeof(bun_payload_header));
+    bun_config cfg = BUN_CONFIG_INITIALIZER;
+    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
+    bun_handle_t *handle = bun_create(&cfg);
+
+    ASSERT_TRUE(handle);
+    size_t size = 0;
+    dummy_func([&]{ size = bun_unwind(handle, buf.data(), buf.size()); });
+
+    ASSERT_EQ(size, 0);
+
+    bun_destroy(handle);
+}
