@@ -93,6 +93,9 @@ void bun_destroy(bun_handle_t *);
  * - buffer_size - maximum number of bytes to write in the output buffer
  *
  * Returns the number of bytes written.
+ *
+ * This function is safe to use from signal handlers (for backends that allow
+ * signal-safe unwinding).
  */
 size_t bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size);
 
