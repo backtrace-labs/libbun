@@ -36,7 +36,5 @@ bun_destroy(bun_handle_t *handle)
 size_t
 bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
 {
-    size_t bytes_written;
-
     return handle->unwind(handle, buffer, buffer_size);
 }
