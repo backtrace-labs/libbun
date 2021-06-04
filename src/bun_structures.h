@@ -31,14 +31,17 @@
 extern "C" {
 #endif
 
+typedef size_t(unwind_function)(struct bun_handle *, void *, size_t);
+typedef void(handle_destructor)(struct bun_handle *);
+
 /*
  * bun_handle is the underlying type of the bun_handle_t handle type. It stores
  * the configuration data used to generate reports.
  */
 struct bun_handle
 {
-    size_t (*unwind_function)(void *);
-    void (*destroy)(struct bun_handle *);
+    unwind_function *unwind;
+    handle_destructor *destroy;
     size_t unwind_buffer_size;
     void *unwind_buffer;
     enum bun_architecture arch;

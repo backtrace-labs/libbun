@@ -47,20 +47,10 @@ bun_destroy(bun_handle_t *handle)
     return;
 }
 
-enum bun_unwind_result
-bun_unwind(bun_handle_t *handle, void **buf, size_t *buf_size)
+size_t
+bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
 {
     size_t bytes_written;
 
-    if (handle == NULL || handle->unwind_function == NULL)
-        return BUN_UNWIND_FAILURE;
-
-    bytes_written = handle->unwind_function(handle);
-
-    if (buf != NULL && buf_size != NULL) {
-        *buf = handle->unwind_buffer;
-        *buf_size = bytes_written;
-    }
-
-    return BUN_UNWIND_SUCCESS;
+    return handle->unwind(handle, buffer, buffer_size);
 }

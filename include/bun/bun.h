@@ -64,11 +64,9 @@ enum bun_architecture {
  */
 struct bun_config {
     enum bun_unwind_backend unwind_backend;
-    size_t buffer_size;
-    void *buffer;
     enum bun_architecture arch;
 };
-#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_DEFAULT, 0, NULL, BUN_ARCH_DETECTED }
+#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_DEFAULT, BUN_ARCH_DETECTED }
 
 /*
  * Opaque handle for the unwinding object.
@@ -86,22 +84,17 @@ bun_handle_t *bun_create(struct bun_config *);
 void bun_destroy(bun_handle_t *);
 
 /*
- * Encodes the result of the unwind function. BUN_UNWIND_PARTIAL is currently
- * unused.
- */
-enum bun_unwind_result {
-    BUN_UNWIND_FAILURE,
-    BUN_UNWIND_SUCCESS
-};
-
-/*
  * This function unwinds from the current context. The result is stored into the
- * pre-configured buffer. Additionally, if non-null pointers are passed as the
- * second and third arguments, they're set with the buffer addres and the
- * actual written payload size, which can be less than the buffer size
+ * passed buffer.
+ *
+ * Parameters:
+ * - handle - libbun handle
+ * - buffer - pointer to the output buffer
+ * - buffer_size - maximum number of bytes to write in the output buffer
+ *
+ * Returns the number of bytes written.
  */
-enum bun_unwind_result bun_unwind(bun_handle_t *handle, void **opt_out_buffer,
-    size_t *opt_out_size);
+size_t bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size);
 
 /*
  * This function registers signal handlers for the following signals:
