@@ -37,19 +37,23 @@ extern "C" {
  * be present on the system.
  */
 enum bun_unwind_backend {
-    BUN_BACKEND_NONE = -1
+    BUN_BACKEND_NONE = -1,
+    BUN_BACKEND_DEFAULT = BUN_DETECTED_SYSTEM_BACKEND
 };
 
 /*
  * Enumeration used to determine the target architecture. Currently only used
  * for informational purposes.
+ *
+ * The build script adds a preprocessor definition BUN_ARCH_DETECTED, which is
+ * set to the current processor architecture.
  */
 enum bun_architecture {
+    BUN_ARCH_UNKNOWN,
     BUN_ARCH_X86,
     BUN_ARCH_X86_64,
     BUN_ARCH_ARM,
-    BUN_ARCH_ARM64,
-    BUN_ARCH_UNKNOWN
+    BUN_ARCH_ARM64
 };
 
 /*
@@ -64,7 +68,7 @@ struct bun_config {
     void *buffer;
     enum bun_architecture arch;
 };
-#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_NONE, 0, NULL, BUN_ARCH_UNKNOWN }
+#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_DEFAULT, 0, NULL, BUN_ARCH_DETECTED }
 
 /*
  * Opaque handle for the unwinding object.
