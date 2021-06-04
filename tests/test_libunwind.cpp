@@ -21,10 +21,8 @@ void dummy_func(std::function<void()> const& f)
 TEST(libunwind, initialize) {
     char buf[128] = {};
 
-    bun_config cfg;
+    bun_config cfg = BUN_CONFIG_INITIALIZER;
     cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    cfg.buffer_size = sizeof(buf);
-    cfg.buffer = buf;
 
     bun_handle_t *handle = bun_create(&cfg);
     ASSERT_TRUE(handle);
@@ -34,20 +32,16 @@ TEST(libunwind, unwinding) {
     std::vector<char> buf(0x10000);
     bun_config cfg = BUN_CONFIG_INITIALIZER;
     cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    cfg.buffer_size = buf.size();
-    cfg.buffer = buf.data();
     bun_handle_t *handle = bun_create(&cfg);
 
     ASSERT_TRUE(handle);
-    void *data = nullptr;
     size_t size = 0;
-    dummy_func([&]{ bun_unwind(handle, &data, &size); });
+    dummy_func([&]{ size = bun_unwind(handle, buf.data(), buf.size()); });
 
-    ASSERT_TRUE(data);
     ASSERT_NE(size, 0);
 
     struct bun_reader reader;
-    bun_reader_init(&reader, data, size);
+    bun_reader_init(&reader, buf.data(), size);
 
     bun_payload_header *header = reinterpret_cast<bun_payload_header *>(buf.data());
     ASSERT_NE(header, nullptr);

@@ -19,7 +19,7 @@
 if (unw_get_reg(cursor, unw_reg, &var) == 0)                                   \
     bun_frame_register_append(frame, bun_reg, var);
 
-static size_t libunwind_unwind(void *);
+static size_t libunwind_unwind(bun_handle_t *, void *, size_t);
 static void destroy_handle(struct bun_handle * handle);
 
 bun_handle_t *_bun_initialize_libunwind(struct bun_config *config)
@@ -29,22 +29,19 @@ bun_handle_t *_bun_initialize_libunwind(struct bun_config *config)
     if (handle == NULL)
         return NULL;
 
-    handle->unwind_function = libunwind_unwind;
-    handle->unwind_buffer = config->buffer;
-    handle->unwind_buffer_size = config->buffer_size;
+    handle->unwind = libunwind_unwind;
     handle->arch = config->arch;
     handle->destroy = destroy_handle;
     return handle;
 }
 
-size_t libunwind_unwind(void *ctx)
+size_t
+libunwind_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
 {
-    struct bun_handle *handle = ctx;
-    struct bun_payload_header *hdr = handle->unwind_buffer;
+    struct bun_payload_header *hdr = buffer;
     struct bun_writer writer;
 
-    bun_writer_init(&writer, handle->unwind_buffer,
-        handle->unwind_buffer_size, handle->arch);
+    bun_writer_init(&writer, buffer, buffer_size, handle->arch);
 
     bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWIND);
 

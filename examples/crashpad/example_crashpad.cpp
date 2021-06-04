@@ -18,7 +18,9 @@
 #error "SYS_gettid unavailable on this system"
 #endif
 
-#define gettid() ((pid_t)syscall(SYS_gettid))
+pid_t gettid();
+
+char buffer[0x10000];
 
 static bool
 startCrashHandler()
@@ -107,36 +109,43 @@ startCrashHandler()
 bun_handle_t *handle;
 static void my_sighandler(int)
 {
-    std::cout << "handler tid: " << gettid() << "\n";
     void *buf;
     size_t buf_size;
-    bun_unwind(handle, &buf, &buf_size);
+    bun_unwind(handle, buffer, sizeof(buffer));
     fprintf(stderr, "%p %lu\n", buf, buf_size);
-    crashpad::CrashpadInfo::GetCrashpadInfo()
-        ->AddUserDataMinidumpStream(BUN_STREAM_ID, buf, buf_size);
 }
 
-void IamDummy()
+void
+IamDummy()
 {
     std::cout << "dummy tid: " << gettid() << "\n";
     memset((void*)(intptr_t)4, 123, 1);
-    // throw 123;
 }
 
-int main()
+int
+main()
 {
     bun_config cfg;
     memset(&cfg, 0, sizeof(cfg));
     cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    cfg.buffer_size = 65536;
-    cfg.buffer = calloc(1, cfg.buffer_size);
     handle = bun_create(&cfg);
 
     std::cerr << startCrashHandler() << '\n';
+
+    crashpad::CrashpadInfo::GetCrashpadInfo()
+        ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer, sizeof(buffer));
     std::cerr << bun_register_signal_handers(handle, &my_sighandler) << '\n';
 
     std::cout << "tid: " << gettid() << "\n";
 
+
+
     IamDummy();
     bun_destroy(handle);
+}
+
+pid_t
+gettid()
+{
+    return ((pid_t)syscall(SYS_gettid));
 }
