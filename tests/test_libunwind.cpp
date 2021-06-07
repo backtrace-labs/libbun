@@ -19,18 +19,19 @@ void dummy_func(std::function<void()> const& f)
 }
 
 TEST(libunwind, initialize) {
-    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
-    ASSERT_TRUE(handle);
-    bun_destroy(handle);
+    struct bun_handle handle;
+    ASSERT_TRUE(bun_handle_init(&handle, BUN_BACKEND_LIBUNWIND));
+    bun_handle_deinit(&handle);
 }
 
 TEST(libunwind, unwinding) {
     std::vector<char> buf(0x10000);
-    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
+    struct bun_handle handle;
 
-    ASSERT_TRUE(handle);
+    ASSERT_TRUE(bun_handle_init(&handle, BUN_BACKEND_LIBUNWIND));
+
     size_t size = 0;
-    dummy_func([&]{ size = bun_unwind(handle, buf.data(), buf.size()); });
+    dummy_func([&]{ size = bun_unwind(&handle, buf.data(), buf.size()); });
 
     ASSERT_NE(size, 0);
 
@@ -58,18 +59,19 @@ TEST(libunwind, unwinding) {
     const bun_frame& frame = *it;
     ASSERT_NE(dummy_line, 0);
     ASSERT_EQ(frame.offset, 0x18);
+    bun_handle_deinit(&handle);
 }
 
 TEST(libunwind, tiny_buffer)
 {
     std::vector<char> buf(sizeof(bun_payload_header));
-    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
+    struct bun_handle handle;
 
-    ASSERT_TRUE(handle);
+    ASSERT_TRUE(bun_handle_init(&handle, BUN_BACKEND_LIBUNWIND));
     size_t size = 0;
-    dummy_func([&]{ size = bun_unwind(handle, buf.data(), buf.size()); });
+    dummy_func([&]{ size = bun_unwind(&handle, buf.data(), buf.size()); });
 
     ASSERT_EQ(size, 0);
 
-    bun_destroy(handle);
+    bun_handle_deinit(&handle);
 }

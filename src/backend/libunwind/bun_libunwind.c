@@ -13,8 +13,6 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
-#include <bun_structures.h>
-
 #include <libunwind.h>
 
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
@@ -22,9 +20,10 @@ do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
     bun_frame_register_append(frame, bun_reg, var); } while (false)
 
 /*
- * Performs the actual unwinding using libunwind
+ * Performs the actual unwinding using libunwind.
  */
-static size_t libunwind_unwind(bun_handle_t *, void *, size_t);
+static size_t libunwind_unwind(struct bun_handle *handle, void *buffer,
+    size_t buffer_size);
 
 /*
  * Handle destructor, calls bun_handle_deinit_internal() internally, to provide
@@ -32,22 +31,17 @@ static size_t libunwind_unwind(bun_handle_t *, void *, size_t);
  */
 static void destroy_handle(struct bun_handle * handle);
 
-bun_handle_t *
-bun_internal_initialize_libunwind(void)
+bool
+bun_internal_initialize_libunwind(struct bun_handle *handle)
 {
-    bun_handle_t *handle = calloc(1, sizeof(struct bun_handle));
-
-    if (handle == NULL)
-        return NULL;
 
     handle->unwind = libunwind_unwind;
     handle->destroy = destroy_handle;
-    handle->arch = BUN_ARCH_DETECTED;
     return handle;
 }
 
 size_t
-libunwind_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
+libunwind_unwind(struct bun_handle *handle, void *buffer, size_t buffer_size)
 {
     struct bun_payload_header *hdr = buffer;
     struct bun_writer writer;
@@ -55,7 +49,7 @@ libunwind_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
     unw_context_t context;
     int n = 0;
 
-    bun_writer_init(&writer, buffer, buffer_size, handle->arch);
+    bun_writer_init(&writer, buffer, buffer_size, BUN_ARCH_DETECTED);
 
     bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWIND);
 
@@ -121,7 +115,6 @@ libunwind_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
 static void
 destroy_handle(struct bun_handle *handle)
 {
-    bun_handle_deinit_internal(handle);
-    free(handle);
+
     return;
 }

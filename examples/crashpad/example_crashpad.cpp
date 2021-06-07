@@ -125,7 +125,14 @@ main()
      * Create the handle using the default backend. One can use a specific
      * backend to force it, for example BUN_BACKEND_LIBUNWIND.
      */
-    bun_handle_t *handle = bun_create(BUN_BACKEND_DEFAULT);
+    struct bun_handle handle;
+    bool bun_initialized = bun_handle_init(&handle, BUN_BACKEND_DEFAULT);
+    if (bun_initialized) {
+        std::cout << "Successfully initialized libbun.\n";
+    } else {
+        std::cout << "Failed to initialize libbun.\n";
+        return EXIT_FAILURE;
+    }
 
     bool crashpad_initialized = startCrashHandler();
     if (crashpad_initialized) {
@@ -141,12 +148,12 @@ main()
     crashpad::CrashpadInfo::GetCrashpadInfo()
         ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer.data(), buffer.size());
 
-    bool signal_handlers_set = bun_sigaction_set(handle, buffer.data(),
+    bool signal_handlers_set = bun_sigaction_set(&handle, buffer.data(),
         buffer.size());
     if (signal_handlers_set) {
-        std::cout << "Signal handlers set\n";
+        std::cout << "Signal handlers set.\n";
     } else {
-        std::cout << "Failed to set signal handlers\n";
+        std::cout << "Failed to set signal handlers.\n";
         return EXIT_FAILURE;
     }
 
@@ -163,7 +170,7 @@ main()
      * In this example, this code will never be reached and is here only for
      * informational purposes.
      */
-    bun_destroy(handle);
+    bun_handle_deinit(&handle);
 
     return EXIT_SUCCESS;
 }

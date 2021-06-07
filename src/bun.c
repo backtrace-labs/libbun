@@ -15,8 +15,7 @@ bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
     switch (backend) {
 #if defined(BUN_LIBUNWIND_ENABLED)
         case BUN_BACKEND_LIBUNWIND:
-            ret = bun_internal_initialize_libunwind(handle);
-            return true;
+            return bun_internal_initialize_libunwind(handle);
 #endif /* BUN_LIBUNWIND_ENABLED */
         default:
             return false;
@@ -38,12 +37,4 @@ bun_unwind(struct bun_handle *handle, void *buffer, size_t buffer_size)
 {
 
     return handle->unwind(handle, buffer, buffer_size);
-}
-
-void
-bun_handle_deinit_internal(struct bun_handle *handle)
-{
-    pthread_mutex_destroy(&handle->lock);
-
-    return;
 }
