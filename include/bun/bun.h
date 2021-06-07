@@ -56,21 +56,52 @@ enum bun_architecture {
     BUN_ARCH_ARM64
 };
 
-/*
- * Opaque handle for the unwinding object.
- */
 struct bun_handle;
-typedef struct bun_handle bun_handle_t;
+/*
+ * The typedef for the unwind function.
+ *
+ * Parameters:
+ * - handle
+ * - output buffer pointer
+ * - outbut buffer size
+ *
+ * Returns:
+ * - number of bytes written to the buffer.
+ *
+ * Return value of 0 indicates an error.
+ */
+typedef size_t (unwind_fn)(struct bun_handle *, void *, size_t);
 
 /*
- * Returns a freshly created unwinder for the selected backend, or NULL on
- * failure.
+ * The typedef for the handle destructor function. If necessary, it will
+ * execute backend-specific code.
  */
-bun_handle_t *bun_create(enum bun_unwind_backend backend);
+typedef void (handle_destructor_fn)(struct bun_handle *);
+
 /*
- * The de-initialization function.
+ * bun_handle is handle used by the library. It contains backend-specific data
+ * and should not be modified by code outside of libbun.
+ *
+ * Client code should treat it as an opaque type.
  */
-void bun_destroy(bun_handle_t *);
+struct bun_handle
+{
+    unwind_fn *unwind;
+    handle_destructor_fn *destroy;
+    void *backend_context;
+};
+
+/*
+ * Initializes the bun_handle for the specified backend.
+ *
+ * Returns true for success.
+ */
+bool bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend);
+
+/*
+ * The de-initialization function of bun_handle.
+ */
+void bun_handle_deinit(struct bun_handle *);
 
 /*
  * This function unwinds from the current context. The result is stored into the
@@ -86,7 +117,7 @@ void bun_destroy(bun_handle_t *);
  * This function is safe to use from signal handlers (for backends that allow
  * signal-safe unwinding).
  */
-size_t bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size);
+size_t bun_unwind(struct bun_handle *handle, void *buffer, size_t buffer_size);
 
 /*
  * This function registers signal handlers for the following signals:
@@ -101,7 +132,7 @@ size_t bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size);
  * If there were registered signal handlers for those signals, they will be
  * called from the libbun's handler, after the
  */
-bool bun_sigaction_set(bun_handle_t *handle, void *buffer, size_t buffer_size);
+bool bun_sigaction_set(struct bun_handle *handle, void *buffer, size_t buffer_size);
 
 #ifdef __cplusplus
 }

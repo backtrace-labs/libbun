@@ -4,11 +4,19 @@
 #include <stdatomic.h>
 #include <stdbool.h>
 
+#include <pthread.h>
+
 #include <bun/bun.h>
 #include <bun/stream.h>
 
 #include "bun_structures.h"
 
+/*
+ * struct handler_pair keeps the data of a pair of handlers:
+ * - current - libbun handler.
+ * - old - previous handler set by other code (e.g. Crashpad or Breakpad).
+ * - has_old - flag telling whether the other handler is in use.
+ */
 struct handler_pair
 {
     struct sigaction current;
@@ -16,14 +24,16 @@ struct handler_pair
     bool has_old;
 };
 
+
 static struct handler_pair handlers[32];
 
 static struct {
-    bun_handle_t *handle;
+    struct bun_handle *handle;
     void *buffer;
     size_t buffer_size;
     atomic_flag in_use;
-} signal_data = { .in_use = ATOMIC_FLAG_INIT };
+    pthread_mutex_t lock;
+} signal_data = { .in_use = ATOMIC_FLAG_INIT, .lock = PTHREAD_MUTEX_INITIALIZER};
 
 static void
 signal_handler(int signum, siginfo_t *info, void *ucontext)
@@ -85,10 +95,10 @@ set_signal_handler(int signum)
 }
 
 bool
-bun_sigaction_set(bun_handle_t *handle, void *buffer, size_t buffer_size)
+bun_sigaction_set(struct bun_handle *handle, void *buffer, size_t buffer_size)
 {
     static int signals[] = { SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS };
-    pthread_mutex_lock(&handle->lock);
+    pthread_mutex_lock(&signal_data.lock);
 
     /*
      * Set handlers for every signal specified in the array. If we fail to set
@@ -104,7 +114,7 @@ bun_sigaction_set(bun_handle_t *handle, void *buffer, size_t buffer_size)
     signal_data.buffer = buffer;
     signal_data.buffer_size = buffer_size;
 
-    pthread_mutex_unlock(&handle->lock);
+    pthread_mutex_unlock(&signal_data.lock);
 
     return true;
 }
