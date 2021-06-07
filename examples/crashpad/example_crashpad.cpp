@@ -20,8 +20,6 @@
 
 pid_t gettid();
 
-char buffer[0x10000];
-
 static bool
 startCrashHandler()
 {
@@ -104,37 +102,75 @@ startCrashHandler()
     );
 }
 
+/*
+ * The dummy function we want to show up in our callstack. Its only purpose is
+ * to print the thread id and simulate a crash.
+ */
 void
 IamDummy()
 {
-    std::cout << "dummy tid: " << gettid() << "\n";
+    std::cout << "dummy function thread id: " << gettid() << "\n";
     __builtin_trap();
 }
 
 int
 main()
 {
+    /*
+     * Allocate the memory for the buffer. It does not need to be
+     */
     std::vector<char> buffer(0x10000);
+
     /*
      * Create the handle using the default backend. One can use a specific
      * backend to force it, for example BUN_BACKEND_LIBUNWIND.
      */
     bun_handle_t *handle = bun_create(BUN_BACKEND_DEFAULT);
 
-    std::cerr << startCrashHandler() << '\n';
+    bool crashpad_initialized = startCrashHandler();
+    if (crashpad_initialized) {
+        std::cout << "Successfully initialized crashpad.\n";
+    } else {
+        std::cout << "Failed to initialize crashpad.\n";
+        return EXIT_FAILURE;
+    }
 
+    /*
+     * Set the Minidump data stream to our buffer.
+     */
     crashpad::CrashpadInfo::GetCrashpadInfo()
         ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer.data(), buffer.size());
-    std::cerr << bun_sigaction_set(handle, buffer.data(), buffer.size()) << '\n';
 
-    std::cout << "tid: " << gettid() << "\n";
+    bool signal_handlers_set = bun_sigaction_set(handle, buffer.data(),
+        buffer.size());
+    if (signal_handlers_set) {
+        std::cout << "Signal handlers set\n";
+    } else {
+        std::cout << "Failed to set signal handlers\n";
+        return EXIT_FAILURE;
+    }
 
+    std::cout << "main function thread id: " << gettid() << "\n";
+
+    /*
+     * Call the crashing function.
+     */
     IamDummy();
+
+    /*
+     * Properly destroy the handle.
+     *
+     * In this example, this code will never be reached and is here only for
+     * informational purposes.
+     */
     bun_destroy(handle);
+
+    return EXIT_SUCCESS;
 }
 
 pid_t
 gettid()
 {
+
     return ((pid_t)syscall(SYS_gettid));
 }
