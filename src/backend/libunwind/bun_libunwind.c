@@ -33,7 +33,7 @@ static size_t libunwind_unwind(bun_handle_t *, void *, size_t);
 static void destroy_handle(struct bun_handle * handle);
 
 bun_handle_t *
-bun_internal_initialize_libunwind(const struct bun_config *config)
+bun_internal_initialize_libunwind(void)
 {
     bun_handle_t *handle = calloc(1, sizeof(struct bun_handle));
 
@@ -42,7 +42,7 @@ bun_internal_initialize_libunwind(const struct bun_config *config)
 
     handle->unwind = libunwind_unwind;
     handle->destroy = destroy_handle;
-    handle->arch = config->arch;
+    handle->arch = BUN_ARCH_DETECTED;
     return handle;
 }
 

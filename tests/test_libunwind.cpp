@@ -19,20 +19,14 @@ void dummy_func(std::function<void()> const& f)
 }
 
 TEST(libunwind, initialize) {
-    char buf[128] = {};
-
-    bun_config cfg = BUN_CONFIG_INITIALIZER;
-    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-
-    bun_handle_t *handle = bun_create(&cfg);
+    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
     ASSERT_TRUE(handle);
+    bun_destroy(handle);
 }
 
 TEST(libunwind, unwinding) {
     std::vector<char> buf(0x10000);
-    bun_config cfg = BUN_CONFIG_INITIALIZER;
-    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    bun_handle_t *handle = bun_create(&cfg);
+    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
 
     ASSERT_TRUE(handle);
     size_t size = 0;
@@ -69,9 +63,7 @@ TEST(libunwind, unwinding) {
 TEST(libunwind, tiny_buffer)
 {
     std::vector<char> buf(sizeof(bun_payload_header));
-    bun_config cfg = BUN_CONFIG_INITIALIZER;
-    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    bun_handle_t *handle = bun_create(&cfg);
+    bun_handle_t *handle = bun_create(BUN_BACKEND_LIBUNWIND);
 
     ASSERT_TRUE(handle);
     size_t size = 0;

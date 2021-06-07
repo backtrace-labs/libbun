@@ -114,11 +114,12 @@ IamDummy()
 int
 main()
 {
-    bun_config cfg;
     std::vector<char> buffer(0x10000);
-    memset(&cfg, 0, sizeof(cfg));
-    cfg.unwind_backend = BUN_BACKEND_LIBUNWIND;
-    bun_handle_t *handle = bun_create(&cfg);
+    /*
+     * Create the handle using the default backend. One can use a specific
+     * backend to force it, for example BUN_BACKEND_LIBUNWIND.
+     */
+    bun_handle_t *handle = bun_create(BUN_BACKEND_DEFAULT);
 
     std::cerr << startCrashHandler() << '\n';
 
