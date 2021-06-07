@@ -7,10 +7,11 @@
 #include "bun_structures.h"
 
 bun_handle_t *
-bun_create(const struct bun_config *config)
+bun_create(enum bun_unwind_backend backend)
 {
     bun_handle_t *ret = NULL;
-    switch (config->unwind_backend) {
+
+    switch (backend) {
         default:
             return NULL;
     }
@@ -36,5 +37,6 @@ bun_destroy(bun_handle_t *handle)
 size_t
 bun_unwind(bun_handle_t *handle, void *buffer, size_t buffer_size)
 {
+
     return handle->unwind(handle, buffer, buffer_size);
 }

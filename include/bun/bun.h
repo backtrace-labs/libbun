@@ -57,27 +57,16 @@ enum bun_architecture {
 };
 
 /*
- * Configuration structure used to initialize the unwinder. The passed buffer
- * will be used to write frames' data up to `buffer_size` bytes. The library
- * *does not* take ownership of the memory passed, so that it is possible to
- * pass a statically allocated buffer
- */
-struct bun_config {
-    enum bun_unwind_backend unwind_backend;
-    enum bun_architecture arch;
-};
-#define BUN_CONFIG_INITIALIZER { BUN_BACKEND_DEFAULT, BUN_ARCH_DETECTED }
-
-/*
  * Opaque handle for the unwinding object.
  */
 struct bun_handle;
 typedef struct bun_handle bun_handle_t;
 
 /*
- * Returns a freshly created unwinder for the config, or NULL on failure.
+ * Returns a freshly created unwinder for the selected backend, or NULL on
+ * failure.
  */
-bun_handle_t *bun_create(const struct bun_config *);
+bun_handle_t *bun_create(enum bun_unwind_backend backend);
 /*
  * The de-initialization function.
  */
