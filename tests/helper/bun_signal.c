@@ -9,8 +9,6 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
-#include "bun_structures.h"
-
 /*
  * struct handler_pair keeps the data of a pair of handlers:
  * - current - libbun handler.
@@ -24,14 +22,13 @@ struct handler_pair
     bool has_old;
 };
 
-
 static struct handler_pair handlers[32];
 
 static struct {
     struct bun_handle *handle;
     void *buffer;
     size_t buffer_size;
-    atomic_flag in_use;
+    volatile atomic_flag in_use;
     pthread_mutex_t lock;
 } signal_data = { .in_use = ATOMIC_FLAG_INIT, .lock = PTHREAD_MUTEX_INITIALIZER};
 
@@ -83,8 +80,6 @@ set_signal_handler(int signum)
      */
     if (signal_data.handle == NULL && sigaction(signum, NULL, &hp->old) == 0) {
         hp->has_old = true;
-    } else {
-        return false;
     }
 
     if (sigaction(signum, &hp->current, NULL) != 0) {

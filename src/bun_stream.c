@@ -11,7 +11,6 @@
 #endif
 
 #include <bun/stream.h>
-#include "bun_structures.h"
 
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 

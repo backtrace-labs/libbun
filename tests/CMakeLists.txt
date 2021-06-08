@@ -1,4 +1,15 @@
+add_library(test_helper STATIC helper/bun_signal.c)
+target_include_directories(test_helper PUBLIC helper)
+target_link_libraries(test_helper PUBLIC bun)
 
 set(TEST_LIBRARIES
-    bun gtest gtest_main Threads::Threads
+    bun gtest gtest_main Threads::Threads test_helper
 )
+
+add_executable(test_base test_base.cpp)
+target_link_libraries(test_base ${TEST_LIBRARIES})
+add_test(NAME base COMMAND test_base)
+
+add_executable(test_signal test_signal.cpp)
+target_link_libraries(test_signal ${TEST_LIBRARIES})
+add_test(NAME signal COMMAND test_signal)

@@ -17,7 +17,7 @@ bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
 }
 
 void
-bun_destroy(struct bun_handle *handle)
+bun_handle_deinit(struct bun_handle *handle)
 {
 
     handle->destroy(handle);

@@ -119,21 +119,6 @@ void bun_handle_deinit(struct bun_handle *);
  */
 size_t bun_unwind(struct bun_handle *handle, void *buffer, size_t buffer_size);
 
-/*
- * This function registers signal handlers for the following signals:
- * - SIGABRT
- * - SIGBUS
- * - SIGSEGV
- * - SIGILL
- * - SIGSYS
- *
- * The registered signal handler will call bun_unwind() on the buffer passed.
- *
- * If there were registered signal handlers for those signals, they will be
- * called from the libbun's handler, after the
- */
-bool bun_sigaction_set(struct bun_handle *handle, void *buffer, size_t buffer_size);
-
 #ifdef __cplusplus
 }
 #endif // __cplusplus
