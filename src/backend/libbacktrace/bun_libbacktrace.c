@@ -31,10 +31,7 @@ static struct backtrace_state *get_backtrace_state()
     static struct backtrace_state *state;
 
     if (state == NULL)
-        state = backtrace_create_state(
-            NULL /*argv[0]*/,
-            BACKTRACE_SUPPORTS_THREADS,
-            NULL /*error_callback*/,
+        state = backtrace_create_state(NULL, BACKTRACE_SUPPORTS_THREADS, NULL,
             NULL);
     return state;
 }
