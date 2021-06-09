@@ -5,4 +5,4 @@
 extern "C"
 #endif
 
-bool bun_internal_initialize_libunwindstack(struct bun_config *);
+bool bun_internal_initialize_libunwindstack(struct bun_handle *);

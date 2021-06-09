@@ -13,7 +13,7 @@
 #include <unwindstack/RegsGetLocal.h>
 #include <unwindstack/Unwinder.h>
 
-static size_t libunwindstack_unwind(void *ctx);
+static size_t libunwindstack_unwind(struct bun_handle *, void *buf, size_t size);
 
 static void
 destroy_handle(struct bun_handle *)
@@ -138,7 +138,7 @@ size_t libunwindstack_unwind(struct bun_handle *handle, void *buffer,
     struct bun_payload_header *hdr = static_cast<bun_payload_header *>(buffer);
     bun_writer_t writer;
 
-    bun_create_writer(&writer, buffer, buffer_size, BUN_ARCH_DETECTED);
+    bun_writer_init(&writer, buffer, buffer_size, BUN_ARCH_DETECTED);
 
     bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWINDSTACK);
 

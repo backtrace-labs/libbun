@@ -9,7 +9,7 @@ add_library(bun STATIC)
 target_compile_features(bun PRIVATE c_std_11)
 target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
-target_link_libraries(bun PUBLIC pthread)
+#target_link_libraries(bun PUBLIC pthread)
 
 find_package(libunwind)
 
