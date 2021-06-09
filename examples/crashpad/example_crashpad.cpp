@@ -18,7 +18,7 @@
 #error "SYS_gettid unavailable on this system"
 #endif
 
-pid_t gettid();
+static pid_t gettid();
 
 static bool
 startCrashHandler()
@@ -117,8 +117,16 @@ IamDummy()
  * its lifetime must be long enough for signal handlers and the buffer
  * should be accessible from a signal handler.
  */
-std::vector<char> buffer(0x10000);
-struct bun_handle *global_handle;
+static std::vector<char> buffer(0x10000);
+
+/*
+ * Handle for use in FirstChahnceHandler.
+ */
+static struct bun_handle *global_handle;
+
+/*
+ * Signal handler executed by CrashpadClient::SetFirstChanceExceptionHandler.
+ */
 bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
 {
     (void) signum;
@@ -133,8 +141,6 @@ bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
 int
 main()
 {
-
-
     /*
      * Create the handle using the default backend. One can use a specific
      * backend to force it, for example BUN_BACKEND_LIBUNWIND.
@@ -149,6 +155,10 @@ main()
         return EXIT_FAILURE;
     }
 
+    /*
+     * Start the Crashpad handler, the code for this function has been taken
+     * and adapted from Backtrace's documentation.
+     */
     bool crashpad_initialized = startCrashHandler();
     if (crashpad_initialized) {
         std::cout << "Successfully initialized crashpad.\n";
@@ -163,6 +173,9 @@ main()
     crashpad::CrashpadInfo::GetCrashpadInfo()
         ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer.data(), buffer.size());
 
+    /*
+     * Set signal/exception handler for the libbun stream.
+     */
     crashpad::CrashpadClient::SetFirstChanceExceptionHandler(FirstChanceHandler);
 
     std::cout << "main function thread id: " << gettid() << "\n";
@@ -183,7 +196,7 @@ main()
     return EXIT_SUCCESS;
 }
 
-pid_t
+static pid_t
 gettid()
 {
 
