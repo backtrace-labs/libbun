@@ -38,7 +38,7 @@ TEST(base, call_destructor) {
     struct bun_handle handle;
     char buf[256];
 
-    bool flag;
+    bool flag = false;
     auto unwind = [](auto &&...) -> size_t { return 1; };
     auto destroy = [&](auto) { flag = true; };
 
