@@ -91,7 +91,7 @@ set_signal_handler(int signum)
 bool
 bun_sigaction_set(struct bun_handle *handle, void *buffer, size_t buffer_size)
 {
-    static int signals[] = { SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS };
+    const static int signals[] = { SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS };
 
     pthread_mutex_lock(&signal_data.lock);
 
