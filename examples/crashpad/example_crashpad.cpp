@@ -27,7 +27,6 @@ startCrashHandler()
 
     std::map<std::string, std::string> annotations;
     std::vector<std::string> arguments;
-    // CrashpadClient client;
     bool rc;
 
     /*
@@ -113,13 +112,28 @@ IamDummy()
     __builtin_trap();
 }
 
+/*
+ * Allocate the memory for the buffer. It may be allocated on the stack, but
+ * its lifetime must be long enough for signal handlers and the buffer
+ * should be accessible from a signal handler.
+ */
+std::vector<char> buffer(0x10000);
+struct bun_handle *global_handle;
+bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
+{
+    (void) signum;
+    (void) info;
+    (void) context;
+
+    bun_unwind(global_handle, buffer.data(), buffer.size());
+
+    return false;
+}
+
 int
 main()
 {
-    /*
-     * Allocate the memory for the buffer. It does not need to be
-     */
-    std::vector<char> buffer(0x10000);
+
 
     /*
      * Create the handle using the default backend. One can use a specific
@@ -129,6 +143,7 @@ main()
     bool bun_initialized = bun_handle_init(&handle, BUN_BACKEND_DEFAULT);
     if (bun_initialized) {
         std::cout << "Successfully initialized libbun.\n";
+        global_handle = &handle;
     } else {
         std::cout << "Failed to initialize libbun.\n";
         return EXIT_FAILURE;
@@ -148,14 +163,7 @@ main()
     crashpad::CrashpadInfo::GetCrashpadInfo()
         ->AddUserDataMinidumpStream(BUN_STREAM_ID, buffer.data(), buffer.size());
 
-    bool signal_handlers_set = bun_sigaction_set(&handle, buffer.data(),
-        buffer.size());
-    if (signal_handlers_set) {
-        std::cout << "Signal handlers set.\n";
-    } else {
-        std::cout << "Failed to set signal handlers.\n";
-        return EXIT_FAILURE;
-    }
+    crashpad::CrashpadClient::SetFirstChanceExceptionHandler(FirstChanceHandler);
 
     std::cout << "main function thread id: " << gettid() << "\n";
 
