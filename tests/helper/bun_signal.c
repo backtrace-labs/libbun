@@ -15,8 +15,7 @@
  * - old - previous handler set by other code (e.g. Crashpad or Breakpad).
  * - has_old - flag telling whether the other handler is in use.
  */
-struct handler_pair
-{
+struct handler_pair {
     struct sigaction current;
     struct sigaction old;
     bool has_old;
@@ -30,7 +29,7 @@ static struct {
     size_t buffer_size;
     volatile atomic_flag in_use;
     pthread_mutex_t lock;
-} signal_data = { .in_use = ATOMIC_FLAG_INIT, .lock = PTHREAD_MUTEX_INITIALIZER};
+} signal_data = { .in_use = ATOMIC_FLAG_INIT, .lock = PTHREAD_MUTEX_INITIALIZER };
 
 static void
 signal_handler(int signum, siginfo_t *info, void *ucontext)
@@ -38,7 +37,7 @@ signal_handler(int signum, siginfo_t *info, void *ucontext)
     bool already_in_use;
     struct handler_pair *hp = NULL;
 
-    if (signum >= sizeof(handlers)/sizeof(*handlers))
+    if (signum >= sizeof(handlers) / sizeof(*handlers))
         return;
 
     hp = &handlers[signum];
@@ -64,7 +63,7 @@ set_signal_handler(int signum)
 {
     struct handler_pair *hp = NULL;
 
-    if (signum >= sizeof(handlers)/sizeof(*handlers))
+    if (signum >= sizeof(handlers) / sizeof(*handlers))
         return false;
 
     hp = &handlers[signum];
@@ -93,14 +92,15 @@ bool
 bun_sigaction_set(struct bun_handle *handle, void *buffer, size_t buffer_size)
 {
     static int signals[] = { SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS };
+
     pthread_mutex_lock(&signal_data.lock);
 
     /*
      * Set handlers for every signal specified in the array. If we fail to set
      * we return false and leave the program in unspecified state to be handled
-     * by the client
+     * by the client.
      */
-    for (size_t i = 0; i < sizeof(signals)/sizeof(*signals); i++) {
+    for (size_t i = 0; i < sizeof(signals) / sizeof(*signals); i++) {
         if (set_signal_handler(signals[i]) == false)
             return false;
     }
