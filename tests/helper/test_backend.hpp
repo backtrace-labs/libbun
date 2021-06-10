@@ -23,5 +23,7 @@ initialize_test_backend(struct bun_handle *handle, Unwind &&u, Destroy &&d)
         delete ctx;
     };
 
+    handle->flags = 0;
+
     return true;
 }

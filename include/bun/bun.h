@@ -23,6 +23,7 @@
 
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,6 +90,11 @@ struct bun_handle
     unwind_fn *unwind;
     handle_destructor_fn *destroy;
     void *backend_context;
+    uint64_t flags;
+};
+
+enum bun_handle_flags {
+    BUN_HANDLE_WRITE_ONCE = (1ULL << 0)
 };
 
 /*

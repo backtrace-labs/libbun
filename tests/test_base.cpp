@@ -63,7 +63,7 @@ TEST(base, write_frame) {
 
     auto unwind = [&](bun_handle *h, void *buf, size_t buf_size) -> size_t {
         struct bun_writer writer;
-        bun_writer_init(&writer, buf, buf_size, BUN_ARCH_DETECTED);
+        bun_writer_init(&writer, buf, buf_size, BUN_ARCH_DETECTED, &handle);
         struct bun_frame frame = {};
         frame.line_no = 42;
         frame.symbol = needle;
@@ -82,4 +82,56 @@ TEST(base, write_frame) {
     ASSERT_NE(memmem(buf.data(), buf.size(), needle, strlen(needle)+1), nullptr);
 
     bun_handle_deinit(&handle);
+}
+
+TEST(base, two_writers_initialize)
+{
+    struct bun_handle handle;
+    std::vector<char> buf(1024);
+    auto unwind = [](auto &&...) -> size_t { return 1; };
+    auto destroy = [&](auto){};
+
+    bool handle_init_result = initialize_test_backend(&handle, unwind, destroy);
+
+    ASSERT_TRUE(handle_init_result);
+
+    bun_writer_t writer1, writer2;
+
+    bool writer_1_initialized = bun_writer_init(&writer1, buf.data(), buf.size(),
+        BUN_ARCH_DETECTED, &handle);
+
+    ASSERT_TRUE(writer_1_initialized);
+
+    bool writer_2_initialized = bun_writer_init(&writer2, buf.data(), buf.size(),
+        BUN_ARCH_DETECTED, &handle);
+
+    ASSERT_TRUE(writer_2_initialized);
+
+    bun_handle_deinit(&handle);
+}
+
+TEST(base, write_once_writer_wont_initialize)
+{
+    struct bun_handle handle;
+    std::vector<char> buf(1024);
+    auto unwind = [](auto &&...) -> size_t { return 1; };
+    auto destroy = [&](auto){};
+
+    bool handle_init_result = initialize_test_backend(&handle, unwind, destroy);
+
+    ASSERT_TRUE(handle_init_result);
+
+    handle.flags |= BUN_HANDLE_WRITE_ONCE;
+
+    bun_writer_t writer1, writer2;
+
+    bool writer_1_initialized = bun_writer_init(&writer1, buf.data(), buf.size(),
+        BUN_ARCH_DETECTED, &handle);
+
+    ASSERT_TRUE(writer_1_initialized);
+
+    bool writer_2_initialized = bun_writer_init(&writer2, buf.data(), buf.size(),
+        BUN_ARCH_DETECTED, &handle);
+
+    ASSERT_FALSE(writer_2_initialized);
 }

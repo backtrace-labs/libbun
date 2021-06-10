@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -23,18 +24,25 @@ static void write_le_64(struct bun_writer *dest, uint64_t value);
 
 bool
 bun_writer_init(struct bun_writer * writer, void *buffer, size_t size,
-    enum bun_architecture arch)
+    enum bun_architecture arch, const struct bun_handle *handle)
 {
     struct bun_payload_header *hdr;
 
     if (size < sizeof(struct bun_payload_header))
         return false;
 
+    hdr = buffer;
+
+    if (handle != NULL && (handle->flags & BUN_HANDLE_WRITE_ONCE) != 0) {
+        uint32_t last = atomic_fetch_add(&hdr->write_count, 1);
+        if (last > 0)
+            return false;
+    }
+
     writer->data.buffer = (char *)buffer;
     writer->data.cursor = (char *)buffer + sizeof(struct bun_payload_header);
     writer->data.size = size;
 
-    hdr = buffer;
 
     hdr->magic = BUN_HEADER_MAGIC;
     hdr->version = 1;
@@ -47,7 +55,8 @@ bun_writer_init(struct bun_writer * writer, void *buffer, size_t size,
 }
 
 bool
-bun_reader_init(struct bun_reader *reader, void *buffer, size_t size)
+bun_reader_init(struct bun_reader *reader, void *buffer, size_t size,
+    const struct bun_handle *handle)
 {
     struct bun_payload_header *header = buffer;
 

@@ -55,17 +55,19 @@ typedef struct bun_writer bun_writer_t;
  * Stream header, used to determine the payload version, its size and its
  * architecture. Values are expected to use little endian encoding.
  */
-struct __attribute((scalar_storage_order("little-endian")))
+struct __attribute__((scalar_storage_order("little-endian")))
 bun_payload_header {
     uint64_t magic;
     uint16_t version;
     uint16_t architecture;
     uint32_t size;
     uint32_t tid;
+    uint32_t write_count;
     uint16_t backend;
+    struct bun_handle *handle;
 };
-static_assert(sizeof(struct bun_payload_header) == 24,
-    "Expected the header to be 24 bytes long");
+static_assert(sizeof(struct bun_payload_header) == 40,
+    "Expected the header to be 40 bytes long");
 
 
 /*
@@ -202,12 +204,13 @@ struct bun_reader {
  * Initialize the writer for the specified buffer and architecture.
  */
 bool bun_writer_init(bun_writer_t * writer, void *buffer, size_t size,
-    enum bun_architecture arch);
+    enum bun_architecture arch, const struct bun_handle *handle);
 
 /*
  * Initialize a reader for the specified buffer.
  */
-bool bun_reader_init(bun_reader_t *reader, void *buffer, size_t size);
+bool bun_reader_init(bun_reader_t *reader, void *buffer, size_t size,
+    const struct bun_handle *handle);
 
 /*
  * Serialize a single frame at the current position of the writer's cursor. This
