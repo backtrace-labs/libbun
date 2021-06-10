@@ -15,7 +15,9 @@
 
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 
-//static pid_t gettid();
+#if !defined(__ANDROID__)
+static pid_t gettid();
+#endif
 
 static uint16_t read_le_16(struct bun_reader *src);
 static void write_le_16(struct bun_writer *dest, uint16_t value);
@@ -236,11 +238,13 @@ bun_frame_register_get(struct bun_frame *frame, uint16_t index, uint16_t *reg,
     return true;
 }
 
-/*static pid_t
+#if !defined(__ANDROID__)
+static pid_t
 gettid()
 {
     return (pid_t)syscall(SYS_gettid);
-}*/
+}
+#endif
 
 static uint16_t
 read_le_16(struct bun_reader *src)

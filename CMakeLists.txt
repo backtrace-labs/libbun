@@ -5,7 +5,9 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
-add_subdirectory("external/libunwindstack-ndk/cmake/")
+if(ANDROID)
+    add_subdirectory("external/libunwindstack-ndk/cmake/")
+endif()
 
 add_subdirectory(src)
 
