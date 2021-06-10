@@ -61,15 +61,17 @@ TEST(signal, call_unwinder) {
     bun_handle_deinit(&handle);
 }
 
-TEST(signal, DISABLED_signal_in_signal) {
+TEST(signal, signal_in_signal) {
     struct bun_handle handle;
     char buf[256];
     std::atomic<int> counter{0};
+    int signum = SIGABRT;
 
     auto unwind = [&](auto &&...) -> size_t {
         counter++;
+        signum++;
         if (counter < 5)
-            raise(SIGABRT);
+            raise(signum);
         return 100;
     };
     auto destroy = [](auto){};
