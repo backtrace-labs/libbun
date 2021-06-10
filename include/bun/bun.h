@@ -37,6 +37,9 @@ extern "C" {
  * Enumeration used to select the unwinding backend library. The library must
  * be present on the system.
  */
+#if !defined(BUN_DETECTED_SYSTEM_BACKEND)
+#define BUN_DETECTED_SYSTEM_BACKEND BUN_BACKEND_NONE
+#endif
 enum bun_unwind_backend {
     BUN_BACKEND_NONE = -1,
 #if defined(BUN_LIBUNWIND_ENABLED)
