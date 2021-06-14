@@ -108,7 +108,7 @@ startCrashHandler()
 void
 IamDummy()
 {
-    std::cout << "dummy function thread id: " << gettid() << "\n";
+    std::cerr << "dummy function thread id: " << gettid() << "\n";
     __builtin_trap();
 }
 
@@ -118,12 +118,12 @@ IamDummy()
  * should be accessible from a signal handler.
  */
 static std::vector<char> buffer_backend(0x10000);
-struct bun_buffer buffer;
+static struct bun_buffer buffer;
 
 /*
  * Handle for use in FirstChahnceHandler.
  */
-static struct bun_handle *global_handle;
+static struct bun_handle handle;
 
 /*
  * Signal handler executed by CrashpadClient::SetFirstChanceExceptionHandler.
@@ -134,7 +134,7 @@ bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
     (void) info;
     (void) context;
 
-    bun_unwind(global_handle, &buffer);
+    bun_unwind(&handle, &buffer);
 
     return false;
 }
@@ -146,13 +146,11 @@ main()
      * Create the handle using the default backend. One can use a specific
      * backend to force it, for example BUN_BACKEND_LIBUNWIND.
      */
-    struct bun_handle handle;
     bool bun_initialized = bun_handle_init(&handle, BUN_BACKEND_DEFAULT);
     if (bun_initialized) {
-        std::cout << "Successfully initialized libbun.\n";
-        global_handle = &handle;
+        std::cerr << "Successfully initialized libbun.\n";
     } else {
-        std::cout << "Failed to initialize libbun.\n";
+        std::cerr << "Failed to initialize libbun.\n";
         return EXIT_FAILURE;
     }
 
@@ -162,18 +160,18 @@ main()
      */
     bool crashpad_initialized = startCrashHandler();
     if (crashpad_initialized) {
-        std::cout << "Successfully initialized crashpad.\n";
+        std::cerr << "Successfully initialized crashpad.\n";
     } else {
-        std::cout << "Failed to initialize crashpad.\n";
+        std::cerr << "Failed to initialize crashpad.\n";
         return EXIT_FAILURE;
     }
 
     bool buffer_initialized = bun_buffer_init(&buffer, buffer_backend.data(),
         buffer_backend.size());
     if (buffer_initialized) {
-        std::cout << "Successfully initialized buffer.\n";
+        std::cerr << "Successfully initialized buffer.\n";
     } else {
-        std::cout << "Failed to initialize buffer.\n";
+        std::cerr << "Failed to initialize buffer.\n";
         return EXIT_FAILURE;
     }
     /*
@@ -187,7 +185,7 @@ main()
      */
     crashpad::CrashpadClient::SetFirstChanceExceptionHandler(FirstChanceHandler);
 
-    std::cout << "main function thread id: " << gettid() << "\n";
+    std::cerr << "main function thread id: " << gettid() << "\n";
 
     /*
      * Call the crashing function.
