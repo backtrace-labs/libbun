@@ -51,16 +51,20 @@ TEST(libunwind_remote, unwinding) {
             while (true)
                 pause();
         });
-    } else {
     }
+
+    /* busy wait */
     while(!initialized)
         ;
+
     size_t size = 0;
     dummy_func([&]{ size = bun_unwind_remote(&handle, &buffer, forked); });
 
     ASSERT_NE(size, 0);
 
-    kill(forked, 9);
+    int status;
+    kill(forked, SIGKILL);
+    waitpid(forked, &status, 0);
 
     struct bun_reader reader;
     bun_reader_init(&reader, &buffer, &handle);
@@ -81,6 +85,5 @@ TEST(libunwind_remote, unwinding) {
     ASSERT_NE(it, frames.cend());
     const bun_frame& frame = *it;
     ASSERT_NE(dummy_line, 0);
-    ASSERT_EQ(frame.offset, 0x18);
     bun_handle_deinit(&handle);
 }

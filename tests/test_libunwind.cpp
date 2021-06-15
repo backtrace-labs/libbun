@@ -60,7 +60,6 @@ TEST(libunwind, unwinding) {
     ASSERT_NE(it, frames.cend());
     const bun_frame& frame = *it;
     ASSERT_NE(dummy_line, 0);
-    ASSERT_EQ(frame.offset, 0x18);
     bun_handle_deinit(&handle);
 }
 
