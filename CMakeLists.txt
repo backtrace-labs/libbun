@@ -5,6 +5,27 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
+
+find_package(libunwind)
+
+if(NOT LIBUNWIND_FOUND AND LIBUNWIND_ENABLED)
+    message(FATAL_ERROR "libunwind not found")
+endif()
+
+if(NOT DEFINED LIBUNWIND_ENABLED AND LIBUNWIND_FOUND)
+    set(LIBUNWIND_ENABLED TRUE)
+endif()
+
+find_package(libbacktrace)
+
+if(NOT LIBBACKTRACE_FOUND AND LIBBACKTRACE_ENABLED)
+    message(FATAL_ERROR "libbacktrace not found")
+endif()
+
+if(NOT DEFINED LIBBACKTRACE_ENABLED AND LIBBACKTRACE_FOUND)
+    set(LIBBACKTRACE_ENABLED TRUE)
+endif()
+
 if(ANDROID)
     add_subdirectory("external/libunwindstack-ndk/cmake/")
 endif()

@@ -7,6 +7,11 @@ To compile this library you need the following:
  - a C11-compatible compiler
  - Google Test (for testing)
 
+On Ubuntu, the following packages are required:
+ - `libgtest-dev` - for tests
+ - `googletest` - for tests
+ - `libunwind-dev` - for the libunwind backend
+
 Additionally, the following backends are supported:
  - libunwind
  - libbacktrace
@@ -15,6 +20,15 @@ Additionally, the following backends are supported:
 # Build and test
 
 This section assumes we're in a build folder one level below project root.
+
+## Checkout and the build directory
+
+```sh
+git clone 'https://github.com/backtrace-labs/libbun.git'
+cd libbun
+mkdir build
+cd build
+```
 
 ## Configure with CMake
 

@@ -6,19 +6,12 @@ list(APPEND BUNWIND_SOURCES
     bun_stream.c
 )
 
-add_library(bun STATIC)
+add_library(bun STATIC bun.c)
 target_compile_features(bun PRIVATE c_std_11)
 target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
 if(NOT ANDROID)
     target_link_libraries(bun PUBLIC pthread)
-endif()
-
-
-find_package(libunwind)
-
-if(NOT LIBUNWIND_FOUND AND LIBUNWIND_ENABLED)
-    message(FATAL_ERROR "libunwind not found")
 endif()
 
 # libunwind
@@ -45,15 +38,8 @@ if(LIBUNWIND_ENABLED)
     )
 endif()
 
-find_package(libbacktrace)
-
-if(NOT LIBBACKTRACE_FOUND AND BUN_LIBBACKTRACE_ENABLED)
-    message(FATAL_ERROR "libbacktrace not found")
-endif()
-
-# message("LIBBACKTRACE_FOUND: ${LIBBACKTRACE_FOUND}")
 # libbacktrace
-if(LIBBACKTRACE_FOUND)
+if(LIBBACKTRACE_ENABLED)
     target_compile_definitions(bun PUBLIC BUN_LIBBACKTRACE_ENABLED)
     target_include_directories(bun PRIVATE ${LIBBACKTRACE_INCLUDE_DIR})
     target_link_libraries(bun PUBLIC ${LIBBACKTRACE_LIBRARIES})
@@ -73,10 +59,9 @@ if(LIBUNWINDSTACK_ENABLED)
     )
 endif()
 
-
-if (LIBUNWIND_FOUND)
+if (LIBUNWIND_ENABLED)
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBUNWIND)
-elseif (LIBBACKTRACE_FOUND)
+elseif (LIBBACKTRACE_ENABLED)
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_LIBBACKTRACE)
 else()
     target_compile_definitions(bun PUBLIC BUN_DETECTED_SYSTEM_BACKEND=BUN_BACKEND_NONE)
