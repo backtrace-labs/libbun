@@ -25,6 +25,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <sys/types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -84,6 +86,7 @@ struct bun_buffer;
  * Return value of 0 indicates an error.
  */
 typedef size_t (unwind_fn)(struct bun_handle *, struct bun_buffer *);
+typedef size_t (unwind_remote_fn)(struct bun_handle *, struct bun_buffer *, pid_t);
 
 /*
  * The typedef for the handle destructor function. If necessary, it will
@@ -100,6 +103,7 @@ typedef void (handle_destructor_fn)(struct bun_handle *);
 struct bun_handle
 {
     unwind_fn *unwind;
+    unwind_remote_fn *unwind_remote;
     handle_destructor_fn *destroy;
     void *backend_context;
     uint64_t flags;
@@ -136,6 +140,9 @@ void bun_handle_deinit(struct bun_handle *);
  * signal-safe unwinding).
  */
 size_t bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer);
+
+size_t bun_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
+    pid_t pid);
 
 #ifdef __cplusplus
 }

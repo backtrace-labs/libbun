@@ -39,6 +39,10 @@ if (LIBUNWIND_ENABLED)
     target_link_libraries(test_libunwind_poison_malloc ${TEST_LIBRARIES})
     target_link_libraries(test_libunwind_poison_malloc poison_malloc)
     add_test(NAME libunwind_poison_malloc COMMAND test_libunwind_poison_malloc)
+
+    add_executable(test_libunwind_remote test_libunwind_remote.cpp)
+    target_link_libraries(test_libunwind_remote ${TEST_LIBRARIES})
+    add_test(NAME libunwind_remote COMMAND test_libunwind_remote)
 endif()
 
 if (LIBBACKTRACE_ENABLED)

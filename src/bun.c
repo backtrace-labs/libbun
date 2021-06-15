@@ -55,3 +55,11 @@ bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 
     return handle->unwind(handle, buffer);
 }
+
+size_t
+bun_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
+    pid_t pid)
+{
+
+    return handle->unwind_remote(handle, buffer, pid);
+}

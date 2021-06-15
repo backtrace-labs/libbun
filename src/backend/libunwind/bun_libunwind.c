@@ -1,6 +1,4 @@
 /* for libunwind */
-#define UNW_LOCAL_ONLY
-
 #include "bun_libunwind.h"
 
 #include <assert.h>
@@ -10,23 +8,33 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/ptrace.h>
+
 #include <bun/bun.h>
 #include <bun/stream.h>
 
 #include "../../bun_internal.h"
 
 #include <libunwind.h>
+#include <libunwind-ptrace.h>
 
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
 do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
     bun_frame_register_append(frame, bun_reg, var); } while (false)
+
+struct bun_libunwind_context {
+    unw_addr_space_t addr_space;
+};
 
 /*
  * Performs the actual unwinding using libunwind.
  */
 static size_t libunwind_unwind(struct bun_handle *handle,
     struct bun_buffer *buffer);
-
+static size_t libunwind_unwind_remote(struct bun_handle *handle,
+    struct bun_buffer *buffer, pid_t pid);
+static size_t libunwind_unwind_impl(unw_cursor_t *cursor,
+    struct bun_handle *handle, struct bun_buffer *buffer);
 /*
  * Handle destructor, calls bun_handle_deinit_internal() internally, to provide
  * inheritance-like functionality for bun_handle.
@@ -36,39 +44,82 @@ static void destroy_handle(struct bun_handle * handle);
 bool
 bun_internal_initialize_libunwind(struct bun_handle *handle)
 {
+    unw_addr_space_t as;
+    struct bun_libunwind_context *context;
 
+    context = malloc(sizeof(struct bun_libunwind_context));
+    if (context == NULL)
+        return false;
+
+    as = unw_create_addr_space(&_UPT_accessors, 0);
+    context->addr_space = as;
+
+    handle->backend_context = context;
     handle->unwind = libunwind_unwind;
+    handle->unwind_remote = libunwind_unwind_remote;
     handle->destroy = destroy_handle;
-    return handle;
+    return true;
 }
 
-size_t
+static size_t
 libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
-    struct bun_payload_header *hdr = bun_buffer_payload(buffer);
-    struct bun_writer writer;
     unw_cursor_t cursor;
     unw_context_t context;
-    int n = 0;
-
-    bun_writer_init(&writer, buffer, BUN_ARCH_DETECTED, handle);
-
-    bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWIND);
-
     unw_getcontext(&context);
     unw_init_local(&cursor, &context);
 
-    while (unw_step(&cursor) > 0) {
+    return libunwind_unwind_impl(&cursor, handle, buffer);
+}
+
+
+
+static size_t
+libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
+    pid_t pid)
+{
+    void *pid_context = _UPT_create(pid);
+    unw_cursor_t cursor;
+    struct bun_libunwind_context *libunwind_context = handle->backend_context;
+    int n = 0;
+    int err = 0;
+    size_t bytes_written = 0;
+
+	if (ptrace(PTRACE_ATTACH, pid, 0, 0) != 0)
+        return 0;
+
+    err = unw_init_remote(&cursor, libunwind_context->addr_space, pid_context);
+    if (err != 0)
+        return 0;
+
+    bytes_written = libunwind_unwind_impl(&cursor, handle, buffer);
+
+    _UPT_destroy(pid_context);
+
+    return bytes_written;
+}
+
+static size_t libunwind_unwind_impl(unw_cursor_t *cursor,
+    struct bun_handle *handle, struct bun_buffer *buffer)
+{
+    struct bun_writer writer;
+    struct bun_payload_header *hdr = bun_buffer_payload(buffer);
+    int n = 0;
+
+    bun_writer_init(&writer, buffer, BUN_ARCH_DETECTED, handle);
+    bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWIND);
+
+    while (unw_step(cursor) > 0) {
         unw_word_t ip, sp, off, current_register;
         struct bun_frame frame;
         char registers[512] = {0};
         char symbol[256] = {"<unknown>"};
         int get_proc_name_result;
 
-        unw_get_reg(&cursor, UNW_REG_IP, &ip);
-        unw_get_reg(&cursor, UNW_REG_SP, &sp);
+        unw_get_reg(cursor, UNW_REG_IP, &ip);
+        unw_get_reg(cursor, UNW_REG_SP, &sp);
 
-        get_proc_name_result = unw_get_proc_name(&cursor, symbol,
+        get_proc_name_result = unw_get_proc_name(cursor, symbol,
             sizeof(symbol), &off);
 
         /*
@@ -191,12 +242,13 @@ libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 #endif
 
         for (size_t i = 0; i < sizeof(register_map)/sizeof(*register_map); i++) {
-            REGISTER_GET(&cursor, &frame, register_map[i].bun_reg,
+            REGISTER_GET(cursor, &frame, register_map[i].bun_reg,
                 register_map[i].unw_reg, current_register);
         }
         if (bun_frame_write(&writer, &frame) == 0)
             return 0;
     }
+
     return hdr->size;
 }
 
@@ -204,5 +256,6 @@ static void
 destroy_handle(struct bun_handle *handle)
 {
 
+    free(handle->backend_context);
     return;
 }

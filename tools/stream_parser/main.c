@@ -60,20 +60,23 @@ usage()
 
 bool parse_and_print(void *data, size_t len)
 {
-
     struct bun_frame frame;
+    struct bun_buffer buffer;
     bun_reader_t r;
 
-    if (bun_reader_init(&r, data, len) == false)
+    if (bun_buffer_init(&buffer, data, len) == false)
+        return false;
+
+    if (bun_reader_init(&r, &buffer, NULL) == false)
         return false;
 
     while (bun_frame_read(&r, &frame) != false) {
         printf("Frame: %s\n", frame.symbol);
         printf("  PC: %p\n", (void *)frame.addr);
-        printf("  Registers: %d\n", frame.register_count);
+        printf("  Registers: %zu\n", frame.register_count);
         for (size_t i = 0; i < frame.register_count; i++) {
-            uint16_t reg;
-            uint64_t val;
+            enum bun_register reg;
+            uintmax_t val;
             const char *str;
             bun_frame_register_get(&frame, i, &reg, &val);
             str = bun_register_to_string(reg);
