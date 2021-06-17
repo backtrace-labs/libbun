@@ -21,33 +21,16 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <bun/bun.h>
-#include <bun/stream.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-template<typename Unwind, typename Destroy>
-static bool
-initialize_test_backend(struct bun_handle *handle, Unwind &&u, Destroy &&d)
-{
-	using decayed_unwind = std::decay_t<Unwind>;
-	using decayed_destroy = std::decay_t<Destroy>;
-	using vtable = std::tuple<decayed_unwind, decayed_destroy>;
+/*
+ * This function is a wrapper around memfd_create(), which might not be
+ * available as a library function on some systems.
+ */
+int bun_memfd_create(const char *name, unsigned int flags);
 
-	*handle = {};
-
-	handle->backend_context = static_cast<void *>(new vtable{
-	    std::forward<Unwind>(u), std::forward<Destroy>(d)});
-
-	handle->unwind =
-	    +[](bun_handle *handle, struct bun_buffer *buffer) -> size_t {
-		auto *ctx = static_cast<const vtable *>(handle->backend_context);
-		return std::get<decayed_unwind>(*ctx)(handle, buffer);
-	};
-
-	handle->destroy = +[](struct bun_handle *handle) {
-		auto *ctx = static_cast<vtable *>(handle->backend_context);
-		std::get<decayed_destroy>(*ctx)(handle);
-		delete ctx;
-	};
-
-	return true;
+#ifdef __cplusplus
 }
+#endif

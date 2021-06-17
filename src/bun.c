@@ -19,47 +19,47 @@ bool
 bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend)
 {
 
-    memset(handle, 0, sizeof(*handle));
+	memset(handle, 0, sizeof(*handle));
 
-    switch (backend) {
+	switch (backend) {
 #if defined(BUN_LIBUNWIND_ENABLED)
-        case BUN_BACKEND_LIBUNWIND:
-            return bun_internal_initialize_libunwind(handle);
+		case BUN_BACKEND_LIBUNWIND:
+			return bun_internal_initialize_libunwind(handle);
 #endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBBACKTRACE_ENABLED)
-        case BUN_BACKEND_LIBBACKTRACE:
-            return bun_internal_initialize_libbacktrace(handle);
+		case BUN_BACKEND_LIBBACKTRACE:
+			return bun_internal_initialize_libbacktrace(handle);
 #endif /* BUN_LIBBACKTRACE_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
-        case BUN_BACKEND_LIBUNWINDSTACK:
-            return bun_internal_initialize_libunwindstack(handle);
+		case BUN_BACKEND_LIBUNWINDSTACK:
+			return bun_internal_initialize_libunwindstack(handle);
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
-        default:
-            return false;
-    }
+		default:
+			return false;
+	}
 
-    return false;
+	return false;
 }
 
 void
 bun_handle_deinit(struct bun_handle *handle)
 {
 
-    handle->destroy(handle);
-    return;
+	handle->destroy(handle);
+	return;
 }
 
 size_t
 bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
 
-    return handle->unwind(handle, buffer);
+	return handle->unwind(handle, buffer);
 }
 
 size_t
 bun_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
-    pid_t pid)
+	pid_t pid)
 {
 
-    return handle->unwind_remote(handle, buffer, pid);
+	return handle->unwind_remote(handle, buffer, pid);
 }

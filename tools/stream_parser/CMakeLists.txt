@@ -2,7 +2,6 @@ add_executable(bun_parse_stream main.c)
 
 list(APPEND PARSE_STREAM_SOURCES
     main.c
-    register_to_string.c
 )
 
 target_include_directories(bun_parse_stream PRIVATE .)

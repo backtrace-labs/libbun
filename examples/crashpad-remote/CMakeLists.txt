@@ -1,0 +1,16 @@
+find_package(Crashpad REQUIRED)
+# message(STATUS "CRASHPAD_INCLUDE_DIR = ${CRASHPAD_INCLUDE_DIR}")
+# message(STATUS "CRASHPAD_INCLUDE_DIRS = ${CRASHPAD_INCLUDE_DIRS}")
+# message(STATUS "CRASHPAD_FOUND = ${CRASHPAD_FOUND}")
+# message(STATUS "CRASHPAD_OBJECT = ${CRASHPAD_OBJECT}")
+# message(STATUS "CRASHPAD_OBJECTS = ${CRASHPAD_OBJECTS}")
+# message(STATUS "CRASHPAD_LIBRARIES = ${CRASHPAD_LIBRARIES}")
+# message(STATUS "CRASHPAD_LIBRARY_DIRECTORIES = ${CRASHPAD_LIBRARY_DIRECTORIES}")
+link_directories(example_crashpad_remote PRIVATE ${CRASHPAD_LIBRARY_DIRECTORIES})
+
+add_executable(example_crashpad_remote example_crashpad_remote.cpp)
+
+target_link_libraries(example_crashpad_remote PUBLIC bun)
+target_include_directories(example_crashpad_remote PUBLIC ${CRASHPAD_INCLUDE_DIRS})
+target_link_libraries(example_crashpad_remote PRIVATE ${CRASHPAD_LIBRARIES})
+target_sources(example_crashpad_remote PRIVATE ${CRASHPAD_OBJECTS})

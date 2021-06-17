@@ -1,17 +1,32 @@
+include(CheckFunctionExists)
+
 list(APPEND BUNWIND_SOURCES
     ../include/bun/bun.h
     ../include/bun/stream.h
+    ../include/bun/utils.h
     bun_internal.h
     bun.c
     bun_stream.c
+    bun_utils.c
+    register_to_string.h
+    register_to_string.c
 )
 
+check_function_exists(bun_memfd_create HAS_MEMFD_CREATE)
+
 add_library(bun STATIC bun.c)
+set_property(TARGET bun PROPERTY POSITION_INDEPENDENT_CODE ON)
 target_compile_features(bun PRIVATE c_std_11)
 target_compile_features(bun PRIVATE cxx_std_17)
 target_include_directories(bun PUBLIC ../include)
+target_link_libraries(bun PUBLIC bcd)
 if(NOT ANDROID)
     target_link_libraries(bun PUBLIC pthread)
+endif()
+
+find_package(Crashpad)
+if (CRASHPAD_FOUND)
+    add_subdirectory(bt-crashpad)
 endif()
 
 # libunwind
@@ -79,3 +94,7 @@ else()
     target_compile_definitions(bun PUBLIC BUN_ARCH_DETECTED=BUN_ARCH_UNKNOWN)
 endif()
 target_sources(bun PRIVATE ${BUNWIND_SOURCES})
+
+if (HAS_MEMFD_CREATE)
+    target_compile_definitions(bun PRIVATE BUN_MEMFD_CREATE_AVAILABLE)
+endif()

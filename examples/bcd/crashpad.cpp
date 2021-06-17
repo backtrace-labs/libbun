@@ -14,11 +14,24 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 
+#include "crashpad.hpp"
+
 #ifndef SYS_gettid
 #error "SYS_gettid unavailable on this system"
 #endif
 
-static pid_t gettid();
+namespace backtrace
+{
+
+bun_handle handle;
+
+static pid_t
+gettid()
+{
+
+	return ((pid_t)syscall(SYS_gettid));
+}
+
 
 static bool
 startCrashHandler()
@@ -112,48 +125,9 @@ IamDummy()
 	__builtin_trap();
 }
 
-/*
- * Allocate the memory for the buffer. It may be allocated on the stack, but
- * its lifetime must be long enough for signal handlers and the buffer
- * should be accessible from a signal handler.
- */
-static std::vector<char> buffer_backend(0x10000);
-static struct bun_buffer buffer;
-
-/*
- * Handle for use in FirstChahnceHandler.
- */
-static struct bun_handle handle;
-
-/*
- * Signal handler executed by CrashpadClient::SetFirstChanceExceptionHandler.
- */
-bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
+bool
+initCrashpad(bun_buffer *buffer, handler_t *handler)
 {
-	(void) signum;
-	(void) info;
-	(void) context;
-
-	bun_unwind(&handle, &buffer);
-
-	return false;
-}
-
-int
-main()
-{
-	/*
-	 * Create the handle using the default backend. One can use a specific
-	 * backend to force it, for example BUN_BACKEND_LIBUNWIND.
-	 */
-	bool bun_initialized = bun_handle_init(&handle, BUN_BACKEND_DEFAULT);
-	if (bun_initialized) {
-		std::cerr << "Successfully initialized libbun.\n";
-	} else {
-		std::cerr << "Failed to initialize libbun.\n";
-		return EXIT_FAILURE;
-	}
-
 	/*
 	 * Start the Crashpad handler, the code for this function has been taken
 	 * and adapted from Backtrace's documentation.
@@ -163,49 +137,102 @@ main()
 		std::cerr << "Successfully initialized crashpad.\n";
 	} else {
 		std::cerr << "Failed to initialize crashpad.\n";
-		return EXIT_FAILURE;
+		return false;
 	}
 
-	bool buffer_initialized = bun_buffer_init(&buffer, buffer_backend.data(),
-		buffer_backend.size());
-	if (buffer_initialized) {
-		std::cerr << "Successfully initialized buffer.\n";
-	} else {
-		std::cerr << "Failed to initialize buffer.\n";
-		return EXIT_FAILURE;
-	}
 	/*
 	 * Set the Minidump data stream to our buffer.
 	 */
 	crashpad::CrashpadInfo::GetCrashpadInfo()->AddUserDataMinidumpStream(
-		BUN_STREAM_ID, buffer_backend.data(), buffer_backend.size());
+	    BUN_STREAM_ID, buffer->data, buffer->size);
 
 	/*
 	 * Set signal/exception handler for the libbun stream.
 	 */
-	crashpad::CrashpadClient::SetFirstChanceExceptionHandler(FirstChanceHandler);
+	if (handler)
+		crashpad::CrashpadClient::SetFirstChanceExceptionHandler(handler);
 
-	std::cerr << "main function thread id: " << gettid() << "\n";
-
-	/*
-	 * Call the crashing function.
-	 */
-	IamDummy();
-
-	/*
-	 * Properly destroy the handle.
-	 *
-	 * In this example, this code will never be reached and is here only for
-	 * informational purposes.
-	 */
-	bun_handle_deinit(&handle);
-
-	return EXIT_SUCCESS;
+	return true;
 }
 
-static pid_t
-gettid()
+void crash()
 {
 
-	return ((pid_t)syscall(SYS_gettid));
+	return IamDummy();
 }
+
+}
+
+
+
+
+// /*
+//  * Allocate the memory for the buffer. It may be allocated on the stack, but
+//  * its lifetime must be long enough for signal handlers and the buffer
+//  * should be accessible from a signal handler.
+//  */
+// static std::vector<char> buffer_backend(0x10000);
+// static struct bun_buffer buffer;
+
+// /*
+//  * Handle for use in FirstChahnceHandler.
+//  */
+// static struct bun_handle handle;
+
+// /*
+//  * Signal handler executed by CrashpadClient::SetFirstChanceExceptionHandler.
+//  */
+// bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
+// {
+// 	(void) signum;
+// 	(void) info;
+// 	(void) context;
+
+// 	bun_unwind(&handle, &buffer);
+
+// 	return false;
+// }
+
+// int
+// main()
+// {
+// 	/*
+// 	 * Create the handle using the default backend. One can use a specific
+// 	 * backend to force it, for example BUN_BACKEND_LIBUNWIND.
+// 	 */
+// 	bool bun_initialized = bun_handle_init(&handle, BUN_BACKEND_DEFAULT);
+// 	if (bun_initialized) {
+// 		std::cerr << "Successfully initialized libbun.\n";
+// 	} else {
+// 		std::cerr << "Failed to initialize libbun.\n";
+// 		return EXIT_FAILURE;
+// 	}
+
+
+// 	bool buffer_initialized = bun_buffer_init(&buffer, buffer_backend.data(),
+// 		buffer_backend.size());
+// 	if (buffer_initialized) {
+// 		std::cerr << "Successfully initialized buffer.\n";
+// 	} else {
+// 		std::cerr << "Failed to initialize buffer.\n";
+// 		return EXIT_FAILURE;
+// 	}
+
+
+// 	std::cerr << "main function thread id: " << gettid() << "\n";
+
+// 	/*
+// 	 * Call the crashing function.
+// 	 */
+// 	IamDummy();
+
+// 	/*
+// 	 * Properly destroy the handle.
+// 	 *
+// 	 * In this example, this code will never be reached and is here only for
+// 	 * informational purposes.
+// 	 */
+// 	bun_handle_deinit(&handle);
+
+// 	return EXIT_SUCCESS;
+// }

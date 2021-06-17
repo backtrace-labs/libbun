@@ -5,6 +5,7 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
+add_subdirectory(external/bcd)
 
 find_package(libunwind)
 

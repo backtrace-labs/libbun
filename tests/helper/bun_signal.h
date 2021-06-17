@@ -32,6 +32,7 @@ extern "C" {
  * This function registers signal handlers for the following signals:
  * - SIGABRT
  * - SIGBUS
+ * - SIGFPE
  * - SIGSEGV
  * - SIGILL
  * - SIGSYS

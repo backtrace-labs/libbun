@@ -36,12 +36,12 @@ extern "C" {
  */
 struct __attribute__((scalar_storage_order("little-endian")))
 bun_payload_header {
-    uint64_t magic;
-    uint16_t version;
-    uint16_t architecture;
-    uint32_t size;
-    uint32_t tid;
-    uint16_t backend;
+	uint64_t magic;
+	uint16_t version;
+	uint16_t architecture;
+	uint32_t size;
+	uint32_t tid;
+	uint16_t backend;
 };
 static_assert(sizeof(struct bun_payload_header) == 24,
     "Expected the header to be 24 bytes long");

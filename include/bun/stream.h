@@ -22,6 +22,7 @@
  */
 
 #include <assert.h>
+#include <stdio.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
@@ -57,110 +58,110 @@ typedef struct bun_writer bun_writer_t;
  * when reading, the user needs not to free the received pointers.
  */
 struct bun_frame {
-    uint64_t addr;
-    const char *symbol;
-    size_t symbol_length;
-    const char *filename;
-    size_t filename_length;
-    size_t line_no;
-    size_t offset;
-    size_t register_count;
-    size_t register_buffer_size;
-    void *register_data;
+	uint64_t addr;
+	const char *symbol;
+	size_t symbol_length;
+	const char *filename;
+	size_t filename_length;
+	size_t line_no;
+	size_t offset;
+	size_t register_count;
+	size_t register_buffer_size;
+	void *register_data;
 };
 
 enum bun_register {
-    /* x86-64 specific registers */
-    BUN_REGISTER_X86_64_BEGIN,
-    BUN_REGISTER_X86_64_RAX = BUN_REGISTER_X86_64_BEGIN,
-    BUN_REGISTER_X86_64_RBX,
-    BUN_REGISTER_X86_64_RCX,
-    BUN_REGISTER_X86_64_RDX,
-    BUN_REGISTER_X86_64_RSI,
-    BUN_REGISTER_X86_64_RDI,
-    BUN_REGISTER_X86_64_RBP,
-    BUN_REGISTER_X86_64_RSP,
-    BUN_REGISTER_X86_64_R8,
-    BUN_REGISTER_X86_64_R9,
-    BUN_REGISTER_X86_64_R10,
-    BUN_REGISTER_X86_64_R11,
-    BUN_REGISTER_X86_64_R12,
-    BUN_REGISTER_X86_64_R13,
-    BUN_REGISTER_X86_64_R14,
-    BUN_REGISTER_X86_64_R15,
-    BUN_REGISTER_X86_64_RIP,
-    BUN_REGISTER_X86_64_END = BUN_REGISTER_X86_64_RIP,
-    /* x86 specific registers */
-    BUN_REGISTER_X86_BEGIN,
-    BUN_REGISTER_X86_EAX = BUN_REGISTER_X86_BEGIN,
-    BUN_REGISTER_X86_EBX,
-    BUN_REGISTER_X86_ECX,
-    BUN_REGISTER_X86_EDX,
-    BUN_REGISTER_X86_ESI,
-    BUN_REGISTER_X86_EDI,
-    BUN_REGISTER_X86_EBP,
-    BUN_REGISTER_X86_ESP,
-    BUN_REGISTER_X86_EIP,
-    BUN_REGISTER_X86_END = BUN_REGISTER_X86_EIP,
-    /* aarch64 specific registers */
-    BUN_REGISTER_AARCH64_BEGIN,
-    BUN_REGISTER_AARCH64_X0 = BUN_REGISTER_AARCH64_BEGIN,
-    BUN_REGISTER_AARCH64_X1,
-    BUN_REGISTER_AARCH64_X2,
-    BUN_REGISTER_AARCH64_X3,
-    BUN_REGISTER_AARCH64_X4,
-    BUN_REGISTER_AARCH64_X5,
-    BUN_REGISTER_AARCH64_X6,
-    BUN_REGISTER_AARCH64_X7,
-    BUN_REGISTER_AARCH64_X8,
-    BUN_REGISTER_AARCH64_X9,
-    BUN_REGISTER_AARCH64_X10,
-    BUN_REGISTER_AARCH64_X11,
-    BUN_REGISTER_AARCH64_X12,
-    BUN_REGISTER_AARCH64_X13,
-    BUN_REGISTER_AARCH64_X14,
-    BUN_REGISTER_AARCH64_X15,
-    BUN_REGISTER_AARCH64_X16,
-    BUN_REGISTER_AARCH64_X17,
-    BUN_REGISTER_AARCH64_X18,
-    BUN_REGISTER_AARCH64_X19,
-    BUN_REGISTER_AARCH64_X20,
-    BUN_REGISTER_AARCH64_X21,
-    BUN_REGISTER_AARCH64_X22,
-    BUN_REGISTER_AARCH64_X23,
-    BUN_REGISTER_AARCH64_X24,
-    BUN_REGISTER_AARCH64_X25,
-    BUN_REGISTER_AARCH64_X26,
-    BUN_REGISTER_AARCH64_X27,
-    BUN_REGISTER_AARCH64_X28,
-    BUN_REGISTER_AARCH64_X29,
-    BUN_REGISTER_AARCH64_X30,
-    BUN_REGISTER_AARCH64_X31,
-    BUN_REGISTER_AARCH64_PC,
-    BUN_REGISTER_AARCH64_PSTATE,
-    BUN_REGISTER_AARCH64_END = BUN_REGISTER_AARCH64_PSTATE,
-    /* arm specific registers*/
-    BUN_REGISTER_ARM_BEGIN,
-    BUN_REGISTER_ARM_R0 = BUN_REGISTER_ARM_BEGIN,
-    BUN_REGISTER_ARM_R1,
-    BUN_REGISTER_ARM_R2,
-    BUN_REGISTER_ARM_R3,
-    BUN_REGISTER_ARM_R4,
-    BUN_REGISTER_ARM_R5,
-    BUN_REGISTER_ARM_R6,
-    BUN_REGISTER_ARM_R7,
-    BUN_REGISTER_ARM_R8,
-    BUN_REGISTER_ARM_R9,
-    BUN_REGISTER_ARM_R10,
-    BUN_REGISTER_ARM_R11,
-    BUN_REGISTER_ARM_R12,
-    BUN_REGISTER_ARM_R13,
-    BUN_REGISTER_ARM_R14,
-    BUN_REGISTER_ARM_R15,
-    BUN_REGISTER_ARM_PSTATE,
-    BUN_REGISTER_ARM_END = BUN_REGISTER_ARM_PSTATE,
+	/* x86-64 specific registers */
+	BUN_REGISTER_X86_64_BEGIN,
+	BUN_REGISTER_X86_64_RAX = BUN_REGISTER_X86_64_BEGIN,
+	BUN_REGISTER_X86_64_RBX,
+	BUN_REGISTER_X86_64_RCX,
+	BUN_REGISTER_X86_64_RDX,
+	BUN_REGISTER_X86_64_RSI,
+	BUN_REGISTER_X86_64_RDI,
+	BUN_REGISTER_X86_64_RBP,
+	BUN_REGISTER_X86_64_RSP,
+	BUN_REGISTER_X86_64_R8,
+	BUN_REGISTER_X86_64_R9,
+	BUN_REGISTER_X86_64_R10,
+	BUN_REGISTER_X86_64_R11,
+	BUN_REGISTER_X86_64_R12,
+	BUN_REGISTER_X86_64_R13,
+	BUN_REGISTER_X86_64_R14,
+	BUN_REGISTER_X86_64_R15,
+	BUN_REGISTER_X86_64_RIP,
+	BUN_REGISTER_X86_64_END = BUN_REGISTER_X86_64_RIP,
+	/* x86 specific registers */
+	BUN_REGISTER_X86_BEGIN,
+	BUN_REGISTER_X86_EAX = BUN_REGISTER_X86_BEGIN,
+	BUN_REGISTER_X86_EBX,
+	BUN_REGISTER_X86_ECX,
+	BUN_REGISTER_X86_EDX,
+	BUN_REGISTER_X86_ESI,
+	BUN_REGISTER_X86_EDI,
+	BUN_REGISTER_X86_EBP,
+	BUN_REGISTER_X86_ESP,
+	BUN_REGISTER_X86_EIP,
+	BUN_REGISTER_X86_END = BUN_REGISTER_X86_EIP,
+	/* aarch64 specific registers */
+	BUN_REGISTER_AARCH64_BEGIN,
+	BUN_REGISTER_AARCH64_X0 = BUN_REGISTER_AARCH64_BEGIN,
+	BUN_REGISTER_AARCH64_X1,
+	BUN_REGISTER_AARCH64_X2,
+	BUN_REGISTER_AARCH64_X3,
+	BUN_REGISTER_AARCH64_X4,
+	BUN_REGISTER_AARCH64_X5,
+	BUN_REGISTER_AARCH64_X6,
+	BUN_REGISTER_AARCH64_X7,
+	BUN_REGISTER_AARCH64_X8,
+	BUN_REGISTER_AARCH64_X9,
+	BUN_REGISTER_AARCH64_X10,
+	BUN_REGISTER_AARCH64_X11,
+	BUN_REGISTER_AARCH64_X12,
+	BUN_REGISTER_AARCH64_X13,
+	BUN_REGISTER_AARCH64_X14,
+	BUN_REGISTER_AARCH64_X15,
+	BUN_REGISTER_AARCH64_X16,
+	BUN_REGISTER_AARCH64_X17,
+	BUN_REGISTER_AARCH64_X18,
+	BUN_REGISTER_AARCH64_X19,
+	BUN_REGISTER_AARCH64_X20,
+	BUN_REGISTER_AARCH64_X21,
+	BUN_REGISTER_AARCH64_X22,
+	BUN_REGISTER_AARCH64_X23,
+	BUN_REGISTER_AARCH64_X24,
+	BUN_REGISTER_AARCH64_X25,
+	BUN_REGISTER_AARCH64_X26,
+	BUN_REGISTER_AARCH64_X27,
+	BUN_REGISTER_AARCH64_X28,
+	BUN_REGISTER_AARCH64_X29,
+	BUN_REGISTER_AARCH64_X30,
+	BUN_REGISTER_AARCH64_X31,
+	BUN_REGISTER_AARCH64_PC,
+	BUN_REGISTER_AARCH64_PSTATE,
+	BUN_REGISTER_AARCH64_END = BUN_REGISTER_AARCH64_PSTATE,
+	/* arm specific registers*/
+	BUN_REGISTER_ARM_BEGIN,
+	BUN_REGISTER_ARM_R0 = BUN_REGISTER_ARM_BEGIN,
+	BUN_REGISTER_ARM_R1,
+	BUN_REGISTER_ARM_R2,
+	BUN_REGISTER_ARM_R3,
+	BUN_REGISTER_ARM_R4,
+	BUN_REGISTER_ARM_R5,
+	BUN_REGISTER_ARM_R6,
+	BUN_REGISTER_ARM_R7,
+	BUN_REGISTER_ARM_R8,
+	BUN_REGISTER_ARM_R9,
+	BUN_REGISTER_ARM_R10,
+	BUN_REGISTER_ARM_R11,
+	BUN_REGISTER_ARM_R12,
+	BUN_REGISTER_ARM_R13,
+	BUN_REGISTER_ARM_R14,
+	BUN_REGISTER_ARM_R15,
+	BUN_REGISTER_ARM_PSTATE,
+	BUN_REGISTER_ARM_END = BUN_REGISTER_ARM_PSTATE,
 
-    BUN_REGISTER_COUNT
+	BUN_REGISTER_COUNT
 };
 
 /*
@@ -169,38 +170,50 @@ enum bun_register {
  * Users should treat this structure as opaque.
  */
 struct bun_buffer {
-    char *data;
-    size_t size;
+	char *data;
+	size_t size;
 };
 
+/*
+ * Initialize the buffer from the data pointer and size. The memory needs to be
+ * writable. The buffer is set to 0 by the way of `memset()`.
+ */
 bool bun_buffer_init(struct bun_buffer *buffer, void *data, size_t size);
-void *bun_buffer_payload(const struct bun_buffer *buffer);
-size_t bun_buffer_payload_size(const struct bun_buffer *buffer);
 
+/*
+ * Returns pointer to the actual payload of the buffer. The returned pointer
+ * will be at some unspecified offset into the buffer.
+ */
+void *bun_buffer_payload(const struct bun_buffer *buffer);
+
+/*
+ * Returns the available size for the payload.
+ */
+size_t bun_buffer_payload_size(const struct bun_buffer *buffer);
 
 /*
  * This is the cursor structure used to read/write binary streams generated by
  * libbun. The stream always begins with a header.
  */
 struct bun_writer_reader_base {
-    char *buffer;
-    char *cursor;
-    size_t size;
-    struct bun_handle *handle;
+	char *buffer;
+	char *cursor;
+	size_t size;
+	struct bun_handle *handle;
 };
 
 struct bun_writer {
-    struct bun_writer_reader_base data;
+	struct bun_writer_reader_base data;
 };
 
 struct bun_reader {
-    struct bun_writer_reader_base data;
+	struct bun_writer_reader_base data;
 };
 
 /*
  * Initialize the writer for the specified buffer and architecture.
  */
-bool bun_writer_init(bun_writer_t * writer, struct bun_buffer *buffer,
+bool bun_writer_init(bun_writer_t *writer, struct bun_buffer *buffer,
     enum bun_architecture arch, struct bun_handle *handle);
 
 /*
@@ -237,12 +250,13 @@ unsigned bun_header_tid_get(const bun_reader_t *reader);
 /*
  * Set thread id of the reporting thread.
  */
-void bun_header_backend_set(bun_writer_t *writer, enum bun_unwind_backend backend);
+void bun_header_backend_set(bun_writer_t *writer,
+    enum bun_unwind_backend backend);
 
 /*
  * Get thread id of the reporting thread.
  */
- enum bun_unwind_backend bun_header_backend_get(const bun_reader_t *reader);
+enum bun_unwind_backend bun_header_backend_get(const bun_reader_t *reader);
 
 /*
  * Append the register value to the specified frame.
@@ -262,6 +276,12 @@ bool bun_frame_register_append(struct bun_frame *, enum bun_register reg,
  */
 bool bun_frame_register_get(struct bun_frame *, size_t index,
     enum bun_register *reg, uintmax_t *value);
+
+/*
+ * Write the callstack information in a human-readable format to the specified
+ * file buffer.
+ */
+void bun_reader_print(struct bun_reader *reader, FILE *output);
 
 #ifdef __cplusplus
 }

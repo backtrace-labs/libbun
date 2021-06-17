@@ -43,17 +43,17 @@ extern "C" {
 #define BUN_DETECTED_SYSTEM_BACKEND BUN_BACKEND_NONE
 #endif
 enum bun_unwind_backend {
-    BUN_BACKEND_NONE = -1,
+	BUN_BACKEND_NONE = -1,
 #if defined(BUN_LIBUNWIND_ENABLED)
-    BUN_BACKEND_LIBUNWIND = 0,
+	BUN_BACKEND_LIBUNWIND = 0,
 #endif /* BUN_LIBUNWIND_ENABLED */
 #if defined(BUN_LIBBACKTRACE_ENABLED)
-    BUN_BACKEND_LIBBACKTRACE = 1,
+	BUN_BACKEND_LIBBACKTRACE = 1,
 #endif /* BUN_LIBBACKTRACE_ENABLED */
 #if defined(BUN_LIBUNWINDSTACK_ENABLED)
-    BUN_BACKEND_LIBUNWINDSTACK = 2,
+	BUN_BACKEND_LIBUNWINDSTACK = 2,
 #endif /* BUN_LIBUNWINDSTACK_ENABLED */
-    BUN_BACKEND_DEFAULT = BUN_DETECTED_SYSTEM_BACKEND
+	BUN_BACKEND_DEFAULT = BUN_DETECTED_SYSTEM_BACKEND
 };
 
 /*
@@ -64,11 +64,11 @@ enum bun_unwind_backend {
  * set to the current processor architecture.
  */
 enum bun_architecture {
-    BUN_ARCH_UNKNOWN,
-    BUN_ARCH_X86,
-    BUN_ARCH_X86_64,
-    BUN_ARCH_ARM,
-    BUN_ARCH_ARM64
+	BUN_ARCH_UNKNOWN,
+	BUN_ARCH_X86,
+	BUN_ARCH_X86_64,
+	BUN_ARCH_ARM,
+	BUN_ARCH_ARM64
 };
 
 struct bun_handle;
@@ -86,7 +86,8 @@ struct bun_buffer;
  * Return value of 0 indicates an error.
  */
 typedef size_t (unwind_fn)(struct bun_handle *, struct bun_buffer *);
-typedef size_t (unwind_remote_fn)(struct bun_handle *, struct bun_buffer *, pid_t);
+typedef size_t (unwind_remote_fn)(struct bun_handle *, struct bun_buffer *,
+    pid_t);
 
 /*
  * The typedef for the handle destructor function. If necessary, it will
@@ -102,16 +103,20 @@ typedef void (handle_destructor_fn)(struct bun_handle *);
  */
 struct bun_handle
 {
-    unwind_fn *unwind;
-    unwind_remote_fn *unwind_remote;
-    handle_destructor_fn *destroy;
-    void *backend_context;
-    uint64_t flags;
-    int write_count;
+	unwind_fn *unwind;
+	unwind_remote_fn *unwind_remote;
+	handle_destructor_fn *destroy;
+	void *backend_context;
+	uint64_t flags;
+	int write_count;
 };
 
+/*
+ * This enumeration describes flag values that can be used to change behavior of
+ * the unwind backend.
+ */
 enum bun_handle_flags {
-    BUN_HANDLE_WRITE_ONCE = (1ULL << 0)
+	BUN_HANDLE_WRITE_ONCE = (1ULL << 0)
 };
 
 /*
@@ -119,7 +124,8 @@ enum bun_handle_flags {
  *
  * Returns true for success.
  */
-bool bun_handle_init(struct bun_handle *handle, enum bun_unwind_backend backend);
+bool bun_handle_init(struct bun_handle *handle,
+    enum bun_unwind_backend backend);
 
 /*
  * The de-initialization function of bun_handle.
@@ -141,6 +147,20 @@ void bun_handle_deinit(struct bun_handle *);
  */
 size_t bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer);
 
+/*
+ * This function unwinds the thread passed as the `pid` argument. The result is
+ * stored into the passed buffer.
+ *
+ * Parameters:
+ * - handle - libbun handle
+ * - buffer - pointer to the output buffer
+ * - pid - id of the thread to be unwound
+ *
+ * Returns the number of bytes written.
+ *
+ * This function is safe to use from signal handlers (for backends that allow
+ * remote unwinding).
+ */
 size_t bun_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
     pid_t pid);
 
