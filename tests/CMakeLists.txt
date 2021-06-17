@@ -61,6 +61,10 @@ if (LIBUNWINDSTACK_ENABLED)
     target_link_libraries(test_libunwindstack ${TEST_LIBRARIES})
     add_test(NAME libunwindstack COMMAND test_libunwindstack)
 
+    add_executable(test_libunwindstack_remote test_libunwindstack_remote.cpp)
+    target_link_libraries(test_libunwindstack_remote ${TEST_LIBRARIES})
+    add_test(NAME libunwindstack_remote COMMAND test_libunwindstack_remote)
+
     add_executable(test_libunwindstack_poison_malloc test_libunwindstack_poison_malloc.cpp)
     target_link_libraries(test_libunwindstack_poison_malloc ${TEST_LIBRARIES})
     target_link_libraries(test_libunwindstack_poison_malloc poison_malloc)

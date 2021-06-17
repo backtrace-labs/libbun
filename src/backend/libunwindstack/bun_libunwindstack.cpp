@@ -3,6 +3,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <sys/ptrace.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
 #include <bun/stream.h>
 
 #include "bun_libunwindstack.h"
@@ -16,6 +21,8 @@
 #include <unwindstack/Unwinder.h>
 
 static size_t libunwindstack_unwind(struct bun_handle *, struct bun_buffer *);
+static size_t libunwindstack_unwind_remote(struct bun_handle *,
+    struct bun_buffer *, pid_t);
 
 static void
 destroy_handle(struct bun_handle *)
@@ -29,6 +36,7 @@ bool bun_internal_initialize_libunwindstack(struct bun_handle *handle)
 {
 
     handle->unwind = libunwindstack_unwind;
+    handle->unwind_remote = libunwindstack_unwind_remote;
     handle->destroy = destroy_handle;
     return handle;
 }
@@ -139,6 +147,13 @@ void libunwindstack_populate_regs(struct bun_frame *frame,
 #endif
 }
 
+static size_t
+libunwindstack_write_frame(const unwindstack::FrameData& frame,
+    struct bun_writer *writer)
+{
+    return 0;
+}
+
 size_t libunwindstack_unwind(struct bun_handle *handle,
     struct bun_buffer *buffer)
 {
@@ -188,7 +203,79 @@ size_t libunwindstack_unwind(struct bun_handle *handle,
 
         bun_header_tid_set(&writer, gettid());
 
-        bun_frame_write(&writer, &bun_frame);
+        if (bun_frame_write(&writer, &bun_frame) == 0)
+            return 0;
+    }
+
+    return hdr->size;
+}
+
+size_t libunwindstack_unwind_remote(struct bun_handle *handle,
+    struct bun_buffer *buffer, pid_t pid)
+{
+    auto *hdr = static_cast<struct bun_payload_header *>(bun_buffer_payload(buffer));
+    bun_writer_t writer;
+    int ptrace_result;
+    int waitpid_status;
+
+    bun_writer_init(&writer, buffer, BUN_ARCH_DETECTED, handle);
+
+    bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWINDSTACK);
+
+    ptrace_result = ptrace(PTRACE_SEIZE, pid, 0, 0);
+	if (ptrace_result != 0) {
+        return 0;
+    }
+
+    kill(pid, SIGSTOP);
+    waitpid(pid, &waitpid_status, 0);
+    if (!WIFSTOPPED(waitpid_status)) {
+        return 0;
+    }
+
+    std::unique_ptr<unwindstack::Regs> registers;
+    unwindstack::LocalMaps local_maps;
+
+    registers = std::unique_ptr<unwindstack::Regs>(
+        unwindstack::Regs::RemoteGet(pid));
+
+    if (local_maps.Parse() == false) {
+        return 0;
+    }
+
+    auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
+
+    constexpr static size_t max_frames = 128;
+    unwindstack::Unwinder unwinder{
+        max_frames, &local_maps, registers.get(), process_memory
+    };
+    unwinder.Unwind();
+
+    for (const auto &frame : unwinder.frames()) {
+        struct bun_frame bun_frame;
+        memset(&bun_frame, 0, sizeof(bun_frame));
+
+        bun_frame.addr = frame.pc;
+        bun_frame.symbol = const_cast<char *>(frame.function_name.c_str());
+        bun_frame.symbol_length = frame.function_name.size();
+        bun_frame.filename = const_cast<char *>(frame.map_name.c_str());
+        bun_frame.filename_length = frame.map_name.size();
+        bun_frame.line_no = frame.function_offset;
+
+        /*
+         * 10 bytes per register (2 for enum and 8 for value), 34 registers in
+         * the worst case (arm64)
+         */
+        uint8_t register_buf[340];
+        bun_frame.register_buffer_size = sizeof(register_buf);
+        bun_frame.register_data = register_buf;
+
+        libunwindstack_populate_regs(&bun_frame, *registers);
+
+        bun_header_tid_set(&writer, pid);
+
+        if (bun_frame_write(&writer, &bun_frame) == 0)
+            return 0;
     }
 
     return hdr->size;

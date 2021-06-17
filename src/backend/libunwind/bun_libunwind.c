@@ -72,8 +72,6 @@ libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
     return libunwind_unwind_impl(&cursor, handle, buffer);
 }
 
-
-
 static size_t
 libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
     pid_t pid)
