@@ -50,6 +50,8 @@ if(LIBUNWIND_ENABLED)
     list(APPEND BUNWIND_SOURCES
         backend/libunwind/bun_libunwind.h
         backend/libunwind/bun_libunwind.c
+        backend/libunwind/demangle.cpp
+        backend/libunwind/demangle.h
     )
 endif()
 

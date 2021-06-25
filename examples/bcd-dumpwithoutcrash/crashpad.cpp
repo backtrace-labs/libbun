@@ -71,7 +71,7 @@ startCrashHandler()
 	 * be used. If Backtrace is hosting your instance, the default
 	 * port is 6098.
 	 */
-	std::string url("https://your_host.sp.backtrace.io:6098/");
+	std::string url("https://your_host.sp.backtrace.io:6098");
 
 	/*
 	 * YOU MUST CHANGE THIS VALUE.
@@ -159,6 +159,12 @@ void crash()
 {
 
 	return IamDummy();
+}
+
+void dumpWithoutCrash(ucontext_t *context)
+{
+
+	crashpad::CrashpadClient::DumpWithoutCrash(context);
 }
 
 }

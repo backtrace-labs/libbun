@@ -348,8 +348,13 @@ void bcd_abort(void);
 #define BCD_MD_PAGESIZE	4096ULL
 #define BCD_SECTION "BACKTRACE_BCD_SB"
 
+#if !defined(__ANDROID__)
 #define BCD_CC_FORCE(M, R)	\
 	__asm__ __volatile__("" : "=m" (M) : "q" (*(R)) : "memory");
+#else
+#define BCD_CC_FORCE(M, R)	\
+	__asm__ __volatile__("" : "=m" (M) : "m" (*(R)) : "memory");
+#endif
 
 #endif /* BCD_INTERNAL_CC_H */
 #ifndef BCD_INTERNAL_CF_H
@@ -2104,6 +2109,7 @@ bcd_uid_name(uid_t *uid, const char *name, bcd_error_t *error)
 		return -1;
 	}
 
+#ifdef BCD_HAS_GETPWNAM_R
 	r = getpwnam_r(name,
 	    &pw, buffer, n_buffer, &pwd);
 
@@ -2118,6 +2124,16 @@ bcd_uid_name(uid_t *uid, const char *name, bcd_error_t *error)
 		free(buffer);
 		return -1;
 	}
+#else
+	pwd = getpwnam(name);
+
+	if (pwd == NULL) {
+		bcd_error_set(error, errno,
+		    "failed to find user for chown");
+		return -1;
+	}
+#endif /* BCD_HAS_GETPWNAM_R */
+
 
 	*uid = pwd->pw_uid;
 	free(buffer);

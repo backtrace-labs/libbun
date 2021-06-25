@@ -12,6 +12,7 @@
 #endif
 
 #include "bun/stream.h"
+#include "bun/utils.h"
 
 #include "bun_internal.h"
 #include "register_to_string.h"
@@ -19,16 +20,29 @@
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 #define REGISTER_SIZE (sizeof(uint16_t) + sizeof(uint64_t))
 
-static pid_t bun_gettid();
-
 static uint16_t read_le_16(struct bun_reader *src);
 static void write_le_16(struct bun_writer *dest, uint16_t value);
 static uint64_t read_le_64(struct bun_reader *src);
 static void write_le_64(struct bun_writer *dest, uint64_t value);
 
+#define CONCAT(a, b) CONCAT_INNER(a, b)
+#define CONCAT_INNER(a, b) a ## b
+
+#define UNIQUE_NAME(base) CONCAT(base, __COUNTER__)
+
+#if UINTPTR_MAX == 0xFFFFFFFFu
+#define BUN_32BIT
+#define PADDING uint32_t UNIQUE_NAME(foo);
+#else
+#define BUN_64BIT
+#define PADDING
+#endif
+
 struct bun_buffer_payload {
 	_Atomic(uint32_t) write_count;
+	PADDING;
 	struct bun_handle *handle;
+	PADDING;
 	struct bun_payload_header header;
 };
 static_assert(sizeof(struct bun_buffer_payload) == BUN_BUFFER_PAYLOAD_HEADER_SIZE,
@@ -292,17 +306,6 @@ bun_frame_register_get(struct bun_frame *frame, size_t index,
 	memcpy(value, buffer, sizeof(uint64_t));
 
 	return true;
-}
-
-static pid_t
-bun_gettid()
-{
-
-#if !defined(__ANDROID__)
-	return (pid_t)syscall(SYS_gettid);
-#else
-	return gettid();
-#endif
 }
 
 static uint16_t

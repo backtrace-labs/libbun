@@ -13,13 +13,17 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <bun/bun.h>
-#include <bun/stream.h>
-
-#include "../../bun_internal.h"
-
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
+
+#include <bun/bun.h>
+#include <bun/stream.h>
+#include <bun/utils.h>
+
+#include "../../bun_internal.h"
+#include "unwind.h"
+
+
 
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
 do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
@@ -37,7 +41,8 @@ static size_t libunwind_unwind(struct bun_handle *handle,
 static size_t libunwind_unwind_remote(struct bun_handle *handle,
     struct bun_buffer *buffer, pid_t pid);
 static size_t libunwind_unwind_impl(unw_cursor_t *cursor,
-    struct bun_handle *handle, struct bun_buffer *buffer);
+    struct bun_handle *handle, struct bun_buffer *buffer, pid_t tid,
+    bool demangle);
 
 /*
  * Handle destructor, calls bun_handle_deinit_internal() internally, to provide
@@ -73,27 +78,27 @@ libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 	unw_getcontext(&context);
 	unw_init_local(&cursor, &context);
 
-	return libunwind_unwind_impl(&cursor, handle, buffer);
+	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(), false);
 }
 
 static size_t
 libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
-    pid_t pid)
+    pid_t tid)
 {
-	void *pid_context = _UPT_create(pid);
+	void *pid_context = _UPT_create(tid);
 	unw_cursor_t cursor;
 	struct bun_libunwind_context *libunwind_context = handle->backend_context;
 	int err = 0;
 	size_t bytes_written = 0;
 	int waitpid_status;
 
-	int ptrace_ret = ptrace(PTRACE_ATTACH, pid, 0, 0);
+	int ptrace_ret = ptrace(PTRACE_ATTACH, tid, 0, 0);
 	if (ptrace_ret != 0) {
 		goto error;
 		return 0;
 	}
 
-	waitpid(pid, &waitpid_status, 0);
+	waitpid(tid, &waitpid_status, 0);
 	if (!WIFSTOPPED(waitpid_status)) {
 		goto error;
 		return 0;
@@ -106,26 +111,27 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 		return 0;
 	}
 
-	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer);
+	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer, tid, true);
 
 	_UPT_destroy(pid_context);
 
-	ptrace(PTRACE_DETACH, pid, 0, 0);
+	ptrace(PTRACE_DETACH, tid, 0, 0);
 	return bytes_written;
 error:
-	ptrace(PTRACE_DETACH, pid, 0, 0);
+	ptrace(PTRACE_DETACH, tid, 0, 0);
 	return 0;
 }
 
 static size_t
 libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
-    struct bun_buffer *buffer)
+    struct bun_buffer *buffer, pid_t tid, bool demangle)
 {
 	struct bun_writer writer;
 	struct bun_payload_header *hdr = bun_buffer_payload(buffer);
 
 	bun_writer_init(&writer, buffer, BUN_ARCH_DETECTED, handle);
 	bun_header_backend_set(&writer, BUN_BACKEND_LIBUNWIND);
+	bun_header_tid_set(&writer, tid);
 
 	while (unw_step(cursor) > 0) {
 		unw_word_t ip, sp, off, current_register;
@@ -146,6 +152,10 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 		 */
 		if (get_proc_name_result != 0 && get_proc_name_result != UNW_ENOMEM) {
 			strcpy(symbol, "<unknown>");
+		}
+
+		if (demangle == true) {
+			bun_unwind_demangle(symbol, sizeof(symbol), symbol);
 		}
 
 		memset(&frame, 0, sizeof(frame));

@@ -21,6 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <sys/types.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -30,6 +32,12 @@ extern "C" {
  * available as a library function on some systems.
  */
 int bun_memfd_create(const char *name, unsigned int flags);
+
+/*
+ * This function returns the current thread id.
+ */
+pid_t bun_gettid();
+
 
 #ifdef __cplusplus
 }
