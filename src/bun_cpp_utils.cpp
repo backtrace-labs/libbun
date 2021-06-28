@@ -1,8 +1,7 @@
-#include "demangle.h"
-
-#include <string>
+#include "bun/utils.h"
 
 #include <cstring>
+#include <string>
 
 #include <cxxabi.h>
 
@@ -16,7 +15,7 @@ bun_unwind_demangle(char *dest, size_t dest_size, const char *src)
 
 	result = abi::__cxa_demangle(src, &name[0], &buf_size, &status);
 
-	if (status == 0) {
+	if (status == 0 && buf_size < dest_size) {
 		strcpy(dest, name.data());
 		return true;
 	} else {

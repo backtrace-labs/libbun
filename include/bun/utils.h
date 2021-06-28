@@ -21,6 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <stdbool.h>
+
 #include <sys/types.h>
 
 #ifdef __cplusplus
@@ -38,6 +40,13 @@ int bun_memfd_create(const char *name, unsigned int flags);
  */
 pid_t bun_gettid();
 
+/*
+ * This function performs demangling of C++ symbol names. The destination buffer
+ * is only written to if the function succeeds and the demangled name can be
+ * written into the destination buffer, including the terminating null
+ * character.
+ */
+bool bun_unwind_demangle(char *dest, size_t dest_size, const char *src);
 
 #ifdef __cplusplus
 }

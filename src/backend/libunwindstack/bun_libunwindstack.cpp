@@ -8,11 +8,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <bun/stream.h>
-
-#include "bun_libunwindstack.h"
+#include "bun/stream.h"
+#include "bun/utils.h"
 
 #include "../../bun_internal.h"
+
+#include "bun_libunwindstack.h"
 
 #include <unwindstack/Maps.h>
 #include <unwindstack/Memory.h>
@@ -157,6 +158,7 @@ libunwindstack_write_frame(const unwindstack::FrameData& frame,
     unwindstack::Regs &registers, bun_writer *writer)
 {
 	struct bun_frame bun_frame;
+	std::string demangle_buffer(4096, '\0');
 	memset(&bun_frame, 0, sizeof(bun_frame));
 
 	bun_frame.addr = frame.pc;
@@ -165,6 +167,12 @@ libunwindstack_write_frame(const unwindstack::FrameData& frame,
 	bun_frame.filename = const_cast<char *>(frame.map_name.c_str());
 	bun_frame.filename_length = frame.map_name.size();
 	bun_frame.line_no = frame.function_offset;
+
+	if (bun_frame.symbol && bun_unwind_demangle(&demangle_buffer[0],
+	    demangle_buffer.size(), bun_frame.symbol)) {
+		bun_frame.symbol = demangle_buffer.c_str();
+		bun_frame.symbol_length = demangle_buffer.size();
+	}
 
 	// 10 bytes per register (2 for enum and 8 for value), 34 registers in the worst case (arm64)
 	uint8_t register_buf[340];

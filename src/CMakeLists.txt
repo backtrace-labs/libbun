@@ -8,6 +8,7 @@ list(APPEND BUNWIND_SOURCES
     bun.c
     bun_stream.c
     bun_utils.c
+    bun_cpp_utils.cpp
     register_to_string.h
     register_to_string.c
 )
@@ -50,8 +51,6 @@ if(LIBUNWIND_ENABLED)
     list(APPEND BUNWIND_SOURCES
         backend/libunwind/bun_libunwind.h
         backend/libunwind/bun_libunwind.c
-        backend/libunwind/demangle.cpp
-        backend/libunwind/demangle.h
     )
 endif()
 

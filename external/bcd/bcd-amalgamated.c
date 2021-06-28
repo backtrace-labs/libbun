@@ -1634,6 +1634,7 @@ bcd_execve(struct bcd_session *session, char **argv, size_t fr)
 				timeout_int -= 10000;
 				if (sig <= 0)
 					signal_check(&sig);
+			}
 		}
 
 #endif /* BCD_HAS_SIGTIMEDWAIT */
