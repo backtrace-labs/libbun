@@ -1613,6 +1613,9 @@ bcd_execve(struct bcd_session *session, char **argv, size_t fr)
 	sigprocmask(SIG_SETMASK, &blockset, NULL);
 
 	for (;;) {
+
+#ifdef BCD_HAS_SIGTIMEDWAIT
+
 		/*
 		 * Handle the cases where SIGALRM, SIGCHLD, or SIGTERM fired
 		 * after vfork() and before sigprocmask().
@@ -1622,7 +1625,18 @@ bcd_execve(struct bcd_session *session, char **argv, size_t fr)
 			if (sig <= 0)
 				signal_check(&sig);
 		}
+#else
+		if (signal_check(&sig) == 0) {
+			unsigned int timeout_int = 1000000;
 
+			while (timeout_int > 0) {
+				usleep(10000);
+				timeout_int -= 10000;
+				if (sig <= 0)
+					signal_check(&sig);
+		}
+
+#endif /* BCD_HAS_SIGTIMEDWAIT */
 		switch (sig) {
 		case SIGALRM:
 			kill(tracer_pid, SIGKILL);
@@ -2160,6 +2174,7 @@ bcd_gid_name(gid_t *gid, const char *name, bcd_error_t *error)
 		return -1;
 	}
 
+#ifdef BCD_HAS_GETGRNAM_R
 	r = getgrnam_r(name, &gr,
 	    buffer, n_buffer, &grp);
 	if (grp == NULL) {
@@ -2173,6 +2188,14 @@ bcd_gid_name(gid_t *gid, const char *name, bcd_error_t *error)
 		free(buffer);
 		return -1;
 	}
+#else
+	grp = getgrnam(name);
+	if (grp == NULL) {
+		bcd_error_set(error, errno,
+		    "failed to find group");
+		return -1;
+	}
+#endif /* BCD_HAS_GETGRNAM_R */
 
 	*gid = grp->gr_gid;
 	free(buffer);
