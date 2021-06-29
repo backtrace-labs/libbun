@@ -159,7 +159,7 @@ libunwindstack_populate_regs(struct bun_frame *frame,
 #endif
 }
 
-static size_t
+static bool
 libunwindstack_write_frame(const unwindstack::FrameData& frame,
     unwindstack::Regs &registers, bun_writer *writer)
 {
@@ -174,20 +174,27 @@ libunwindstack_write_frame(const unwindstack::FrameData& frame,
 	bun_frame.filename_length = frame.map_name.size();
 	bun_frame.line_no = frame.function_offset;
 
+	if (bun_frame.symbol == nullptr || bun_frame.symbol_length == 0) {
+		return true;
+	}
+
 	if (bun_frame.symbol && bun_unwind_demangle(&demangle_buffer[0],
 	    demangle_buffer.size(), bun_frame.symbol)) {
 		bun_frame.symbol = demangle_buffer.c_str();
-		bun_frame.symbol_length = demangle_buffer.size();
+		bun_frame.symbol_length = strlen(demangle_buffer.c_str());
 	}
 
-	// 10 bytes per register (2 for enum and 8 for value), 34 registers in the worst case (arm64)
+	/*
+	 * 10 bytes per register (2 for enum and 8 for value),
+	 * 34 registers in the worst case (arm64)
+	 */
 	uint8_t register_buf[340];
 	bun_frame.register_buffer_size = sizeof(register_buf);
 	bun_frame.register_data = register_buf;
 
 	libunwindstack_populate_regs(&bun_frame, registers);
 
-	return bun_frame_write(writer, &bun_frame);
+	return bun_frame_write(writer, &bun_frame) > 0;
 }
 
 size_t libunwindstack_unwind(struct bun_handle *handle,
@@ -222,7 +229,7 @@ struct bun_buffer *buffer)
 	unwinder.Unwind();
 
 	for (const auto &frame : unwinder.frames()) {
-		if (libunwindstack_write_frame(frame, *registers, &writer) == 0)
+		if (libunwindstack_write_frame(frame, *registers, &writer) == false)
 			return 0;
 	}
 
