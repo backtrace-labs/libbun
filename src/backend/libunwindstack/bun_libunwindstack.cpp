@@ -21,6 +21,10 @@
 #include <unwindstack/RegsGetLocal.h>
 #include <unwindstack/Unwinder.h>
 
+#ifdef __i386__
+#define BUN_DISABLE_LIBUNWINDSTACK_INTEGRATION
+#endif
+
 static size_t libunwindstack_unwind(struct bun_handle *, struct bun_buffer *);
 static size_t libunwindstack_unwind_remote(struct bun_handle *,
     struct bun_buffer *, pid_t);
@@ -35,11 +39,14 @@ destroy_handle(struct bun_handle *)
 extern "C"
 bool bun_internal_initialize_libunwindstack(struct bun_handle *handle)
 {
-
+#ifndef BUN_DISABLE_LIBUNWINDSTACK_INTEGRATION
 	handle->unwind = libunwindstack_unwind;
 	handle->unwind_remote = libunwindstack_unwind_remote;
 	handle->destroy = destroy_handle;
-	return handle;
+	return true;
+#else
+	return false;
+#endif
 }
 
 void
@@ -145,7 +152,6 @@ libunwindstack_populate_regs(struct bun_frame *frame,
 	libunwindstack_populate_regs_x86_64(frame, registers);
 #elif __i386__
 	/* No support for x86, we don't support Crashpad x86 either. */
-	static_assert(false, "32-bit x86 is not supported.");
 #elif __aarch64__
 	libunwindstack_populate_regs_arm64(frame, registers);
 #elif __arm__
