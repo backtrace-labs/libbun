@@ -8,17 +8,20 @@
 bool
 bun_unwind_demangle(char *dest, size_t dest_size, const char *src)
 {
-	std::string name(dest_size, '\0');
-	int status;
-	size_t buf_size = dest_size;
 	char *result;
 
-	result = abi::__cxa_demangle(src, &name[0], &buf_size, &status);
+	result = abi::__cxa_demangle(src, nullptr, nullptr, nullptr);
+	if (result) {
+		size_t len = strlen(result);
 
-	if (status == 0 && buf_size < dest_size) {
-		strcpy(dest, name.data());
+		if (len >= dest_size)
+			goto error;
+
+		strcpy(dest, result);
 		return true;
-	} else {
-		return false;
 	}
+
+error:
+	free(result);
+	return false;
 }
