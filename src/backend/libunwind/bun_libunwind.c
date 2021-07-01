@@ -24,6 +24,7 @@
 #include "unwind.h"
 
 
+#include <android/log.h>
 
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
 do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
@@ -64,6 +65,8 @@ bun_internal_initialize_libunwind(struct bun_handle *handle)
 	context->addr_space = as;
 
 	handle->backend_context = context;
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "unwind(): %p", libunwind_unwind);
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "unwind_remote(): %p", libunwind_unwind_remote);
 	handle->unwind = libunwind_unwind;
 	handle->unwind_remote = libunwind_unwind_remote;
 	handle->destroy = destroy_handle;
@@ -73,10 +76,16 @@ bun_internal_initialize_libunwind(struct bun_handle *handle)
 static size_t
 libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
 	unw_cursor_t cursor;
-	unw_context_t context;
-	unw_getcontext(&context);
-	unw_init_local(&cursor, &context);
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
+    unw_context_t context;
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
+    unw_getcontext(&context);
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
+    unw_init_local(&cursor, &context);
+    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
 
 	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(), false);
 }
@@ -85,6 +94,8 @@ static size_t
 libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
     pid_t tid)
 {
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
 	void *pid_context = _UPT_create(tid);
 	unw_cursor_t cursor;
 	struct bun_libunwind_context *libunwind_context = handle->backend_context;
@@ -161,6 +172,7 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 		memset(&frame, 0, sizeof(frame));
 		frame.symbol = symbol;
 		frame.symbol_length = strlen(symbol);
+        __android_log_print(ANDROID_LOG_ERROR, "krzaq", "libunwind Symbol (%3d): %s", frame.symbol_length, frame.symbol);
 		frame.addr = ip;
 		frame.offset = off;
 		frame.register_buffer_size = sizeof(registers);
@@ -240,7 +252,7 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 			{BUN_REGISTER_AARCH64_X28, UNW_AARCH64_X28},
 			{BUN_REGISTER_AARCH64_X29, UNW_AARCH64_X29},
 			{BUN_REGISTER_AARCH64_X30, UNW_AARCH64_X30},
-			{BUN_REGISTER_AARCH64_X31, UNW_AARCH64_X31},
+			//{BUN_REGISTER_AARCH64_X31, UNW_AARCH64_X31},
 			{BUN_REGISTER_AARCH64_PC, UNW_AARCH64_PC},
 			{BUN_REGISTER_AARCH64_PSTATE, UNW_AARCH64_PSTATE}
 		};

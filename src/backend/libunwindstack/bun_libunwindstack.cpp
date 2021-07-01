@@ -21,6 +21,9 @@
 #include <unwindstack/RegsGetLocal.h>
 #include <unwindstack/Unwinder.h>
 
+
+#include <android/log.h>
+
 #ifdef __i386__
 #define BUN_DISABLE_LIBUNWINDSTACK_INTEGRATION
 #endif
@@ -174,6 +177,9 @@ libunwindstack_write_frame(const unwindstack::FrameData& frame,
 	bun_frame.filename_length = frame.map_name.size();
 	bun_frame.line_no = frame.function_offset;
 
+
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "Symbol (%3d): %s", bun_frame.symbol_length, bun_frame.symbol);
+
 	if (bun_frame.symbol == nullptr || bun_frame.symbol_length == 0) {
 		return true;
 	}
@@ -236,6 +242,38 @@ struct bun_buffer *buffer)
 	return hdr->size;
 }
 
+static bool TestQuiescePid(pid_t pid) {
+	siginfo_t si;
+	bool ready = false;
+	// Wait for up to 5 seconds.
+	for (size_t i = 0; i < 5000; i++) {
+		if (ptrace(PTRACE_GETSIGINFO, pid, 0, &si) == 0) {
+			ready = true;
+			break;
+		}
+		usleep(1000);
+	}
+	return ready;
+}
+
+static void WaitForRemote(pid_t pid, uint64_t addr, bool leave_attached, bool* completed) {
+	*completed = false;
+	// Need to sleep before attempting first ptrace. Without this, on the
+	// host it becomes impossible to attach and ptrace sets errno to EPERM.
+	usleep(1000);
+	for (size_t i = 0; i < 1000; i++) {
+		if (ptrace(PTRACE_ATTACH, pid, 0, 0) == 0) {
+			if (!TestQuiescePid(pid))
+				return;
+			if (!leave_attached)
+				return;
+		} else {
+			return;
+		}
+		usleep(5000);
+	}
+}
+
 size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 	struct bun_buffer *buffer, pid_t pid)
 {
@@ -255,30 +293,42 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 		return 0;
 	}
 
-	waitpid(pid, &waitpid_status, 0);
+	int waitpid_result = waitpid(pid, &waitpid_status, 0);
+
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "status %d, result: %d", waitpid_status, waitpid_result);
 	if (!WIFSTOPPED(waitpid_status)) {
+		ptrace(PTRACE_DETACH, pid, 0, 0);
 		return 0;
 	}
+//bool huj;
+//WaitForRemote(pid, 0, true, &huj);
 
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "stopsig: %d", WSTOPSIG(waitpid_status));
 	std::unique_ptr<unwindstack::Regs> registers;
-	unwindstack::LocalMaps local_maps;
+	unwindstack::RemoteMaps remote_maps(pid);
 
-	registers = std::unique_ptr<unwindstack::Regs>(
-		unwindstack::Regs::RemoteGet(pid));
-
-	if (local_maps.Parse() == false) {
+	if (remote_maps.Parse() == false) {
 		ptrace(PTRACE_DETACH, pid, 0, 0);
 		return 0;
 	}
 
+    registers = std::unique_ptr<unwindstack::Regs>(
+            unwindstack::Regs::RemoteGet(pid));
+
 	auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
 
-	constexpr static size_t max_frames = 128;
-	unwindstack::Unwinder unwinder{
-		max_frames, &local_maps, registers.get(), process_memory
-	};
+	constexpr static size_t max_frames = 512;
+//	unwindstack::Unwinder unwinder{
+//		max_frames, &remote_maps, registers.get(), process_memory
+//	};
+	unwindstack::UnwinderFromPid unwinder{ max_frames, pid, &remote_maps };
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "I'm here %d", __LINE__);
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "Init(): %d", unwinder.Init());
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "I'm here %d", __LINE__);
 	unwinder.Unwind();
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "I'm here %d", __LINE__);
 
+	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "Num frames: %d", unwinder.frames().size());
 	for (const auto &frame : unwinder.frames()) {
 		if (libunwindstack_write_frame(frame, *registers, &writer) == 0) {
 			ptrace(PTRACE_DETACH, pid, 0, 0);
