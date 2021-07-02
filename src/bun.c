@@ -5,8 +5,6 @@
 #include <bun/bun.h>
 #include <bun/stream.h>
 
-#include <android/log.h>
-
 #if defined(BUN_LIBUNWIND_ENABLED)
 #include "backend/libunwind/bun_libunwind.h"
 #endif /* BUN_LIBUNWIND_ENABLED */
@@ -55,9 +53,6 @@ size_t
 bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
 
-	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "Handle: %p, buffer: %p", handle, buffer);
-	if (handle)
-		__android_log_print(ANDROID_LOG_ERROR, "krzaq", "Handle.unwind %p", handle->unwind);
 	return handle->unwind(handle, buffer);
 }
 

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /* for libunwind */
 #include "bun_libunwind.h"
 
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dlfcn.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -23,12 +25,14 @@
 #include "../../bun_internal.h"
 #include "unwind.h"
 
-
-#include <android/log.h>
-
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
 do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
 	bun_frame_register_append(frame, bun_reg, var); } while (false)
+
+enum bun_unwind_signal_safety {
+	BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED,
+	BUN_UNWIND_SIGNAL_SAFETY_REQUIRED,
+};
 
 struct bun_libunwind_context {
 	unw_addr_space_t addr_space;
@@ -43,7 +47,7 @@ static size_t libunwind_unwind_remote(struct bun_handle *handle,
     struct bun_buffer *buffer, pid_t pid);
 static size_t libunwind_unwind_impl(unw_cursor_t *cursor,
     struct bun_handle *handle, struct bun_buffer *buffer, pid_t tid,
-    bool demangle);
+    enum bun_unwind_signal_safety signal_safety);
 
 /*
  * Handle destructor, calls bun_handle_deinit_internal() internally, to provide
@@ -65,8 +69,6 @@ bun_internal_initialize_libunwind(struct bun_handle *handle)
 	context->addr_space = as;
 
 	handle->backend_context = context;
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "unwind(): %p", libunwind_unwind);
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "unwind_remote(): %p", libunwind_unwind_remote);
 	handle->unwind = libunwind_unwind;
 	handle->unwind_remote = libunwind_unwind_remote;
 	handle->destroy = destroy_handle;
@@ -76,26 +78,19 @@ bun_internal_initialize_libunwind(struct bun_handle *handle)
 static size_t
 libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 {
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
 	unw_cursor_t cursor;
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
-    unw_context_t context;
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
-    unw_getcontext(&context);
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
-    unw_init_local(&cursor, &context);
-    __android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
+	unw_context_t context;
+	unw_getcontext(&context);
+	unw_init_local(&cursor, &context);
 
-	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(), false);
+	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(),
+	    BUN_UNWIND_SIGNAL_SAFETY_REQUIRED);
 }
 
 static size_t
 libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
     pid_t tid)
 {
-	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-	__android_log_print(ANDROID_LOG_ERROR, "krzaq", "%s:%d", __FILE__, __LINE__);
 	void *pid_context = _UPT_create(tid);
 	unw_cursor_t cursor;
 	struct bun_libunwind_context *libunwind_context = handle->backend_context;
@@ -122,7 +117,8 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 		return 0;
 	}
 
-	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer, tid, true);
+	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer, tid,
+	    BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED);
 
 	_UPT_destroy(pid_context);
 
@@ -133,9 +129,35 @@ error:
 	return 0;
 }
 
+static void
+fallback_dladdr_function_name(char *symbol, size_t buffer_size, unw_word_t ip)
+{
+	Dl_info info;
+	size_t symbol_len;
+
+	if (dladdr((void *)ip, &info) == 0)
+		goto error;
+
+	if (info.dli_sname == NULL)
+		goto error;
+
+	symbol_len = strlen(info.dli_sname);
+	if (symbol_len >= buffer_size) {
+		strncpy(symbol, info.dli_sname, buffer_size - 1);
+		symbol[buffer_size - 1] = '\0';
+	} else {
+		strcpy(symbol, info.dli_sname);
+	}
+	return;
+error:
+	strcpy(symbol, "<unknown>");
+	return;
+}
+
 static size_t
 libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
-    struct bun_buffer *buffer, pid_t tid, bool demangle)
+    struct bun_buffer *buffer, pid_t tid,
+    enum bun_unwind_signal_safety signal_safety)
 {
 	struct bun_writer writer;
 	struct bun_payload_header *hdr = bun_buffer_payload(buffer);
@@ -159,20 +181,32 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 
 		/*
 		 * Don't overwrite the symbol for UNW_ENOMEM because it returns
-		 * a partially useful name
+		 * a partially useful name.
 		 */
+#ifndef __ANDROID__
 		if (get_proc_name_result != 0 && get_proc_name_result != UNW_ENOMEM) {
-			strcpy(symbol, "<unknown>");
+			fallback_dladdr_function_name(symbol, sizeof(symbol), ip);
 		}
+#else /* if __ANDRDOID__ */
+		/*
+		 * On Android, `unw_get_proc_name` returns a boolean value
+		 * internally, where `true` stands for success. This is contrary
+		 * to man pages available on Linux.
+		 */
+		if (get_proc_name_result == 0) {
+			strcpy(symbol, "<unknown>");
+			fallback_dladdr_function_name(symbol, sizeof(symbol), ip);
+		}
+#endif
 
-		if (demangle == true) {
+
+		if (signal_safety == BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED) {
 			bun_unwind_demangle(symbol, sizeof(symbol), symbol);
 		}
 
 		memset(&frame, 0, sizeof(frame));
 		frame.symbol = symbol;
 		frame.symbol_length = strlen(symbol);
-        __android_log_print(ANDROID_LOG_ERROR, "krzaq", "libunwind Symbol (%3d): %s", frame.symbol_length, frame.symbol);
 		frame.addr = ip;
 		frame.offset = off;
 		frame.register_buffer_size = sizeof(registers);
@@ -252,7 +286,6 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 			{BUN_REGISTER_AARCH64_X28, UNW_AARCH64_X28},
 			{BUN_REGISTER_AARCH64_X29, UNW_AARCH64_X29},
 			{BUN_REGISTER_AARCH64_X30, UNW_AARCH64_X30},
-			//{BUN_REGISTER_AARCH64_X31, UNW_AARCH64_X31},
 			{BUN_REGISTER_AARCH64_PC, UNW_AARCH64_PC},
 			{BUN_REGISTER_AARCH64_PSTATE, UNW_AARCH64_PSTATE}
 		};
@@ -276,8 +309,7 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 			{BUN_REGISTER_ARM_R12, UNW_ARM_R12},
 			{BUN_REGISTER_ARM_R13, UNW_ARM_R13},
 			{BUN_REGISTER_ARM_R14, UNW_ARM_R14},
-			{BUN_REGISTER_ARM_R15, UNW_ARM_R15},
-			{BUN_REGISTER_ARM_PSTATE, UNW_ARM_PSTATE}
+			{BUN_REGISTER_ARM_R15, UNW_ARM_R15}
 		};
 #endif
 
