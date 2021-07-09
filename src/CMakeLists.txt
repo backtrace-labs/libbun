@@ -27,9 +27,6 @@ if(NOT ANDROID)
 endif()
 
 find_package(Crashpad)
-if (CRASHPAD_FOUND)
-    add_subdirectory(bt-crashpad)
-endif()
 
 # libunwind
 if(LIBUNWIND_ENABLED)
@@ -39,18 +36,16 @@ if(LIBUNWIND_ENABLED)
     if (NOT ANDROID)
         target_link_libraries(bun PUBLIC unwind-ptrace)
 
-
-        if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86_64")
+        if (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86_64")
             target_link_libraries(bun PUBLIC unwind-x86_64)
-        elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "x86")
+        elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "x86")
             target_link_libraries(bun PUBLIC unwind-x86)
-        elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm")
+        elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "arm")
             target_link_libraries(bun PUBLIC unwind-arm)
-        elseif (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm64")
+        elseif (${CMAKE_SYSTEM_PROCESSOR} MATCHES "aarch64")
             target_link_libraries(bun PUBLIC unwind-aarch64)
         endif()
     endif()
-
 
     target_link_libraries(bun PUBLIC ${LIBUNWIND_LIBRARIES})
     list(APPEND BUNWIND_SOURCES

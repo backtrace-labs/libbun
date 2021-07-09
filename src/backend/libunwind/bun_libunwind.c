@@ -96,7 +96,6 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 	struct bun_libunwind_context *libunwind_context = handle->backend_context;
 	int err = 0;
 	size_t bytes_written = 0;
-	int waitpid_status;
 
 	int ptrace_ret = ptrace(PTRACE_ATTACH, tid, 0, 0);
 	if (ptrace_ret != 0) {
@@ -104,8 +103,7 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 		return 0;
 	}
 
-	waitpid(tid, &waitpid_status, 0);
-	if (!WIFSTOPPED(waitpid_status)) {
+	if (bun_waitpid(tid, 5000) < 0) {
 		goto error;
 		return 0;
 	}
@@ -183,23 +181,13 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 		 * Don't overwrite the symbol for UNW_ENOMEM because it returns
 		 * a partially useful name.
 		 */
-#ifndef __ANDROID__
 		if (get_proc_name_result != 0 && get_proc_name_result != UNW_ENOMEM) {
 			fallback_dladdr_function_name(symbol, sizeof(symbol), ip);
 		}
-#else /* if __ANDRDOID__ */
+
 		/*
-		 * On Android, `unw_get_proc_name` returns a boolean value
-		 * internally, where `true` stands for success. This is contrary
-		 * to man pages available on Linux.
+		 * Demangle the name if we're not forced to be signal-safe.
 		 */
-		if (get_proc_name_result == 0) {
-			strcpy(symbol, "<unknown>");
-			fallback_dladdr_function_name(symbol, sizeof(symbol), ip);
-		}
-#endif
-
-
 		if (signal_safety == BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED) {
 			bun_unwind_demangle(symbol, sizeof(symbol), symbol);
 		}

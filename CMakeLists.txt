@@ -19,14 +19,6 @@ if(NOT DEFINED LIBUNWIND_ENABLED AND LIBUNWIND_FOUND)
     set(LIBUNWIND_ENABLED TRUE)
 endif()
 
-if (ANDROID)
-    add_subdirectory(external/libunwind-ndk/cmake)
-    set(LIBUNWIND_FOUND TRUE)
-    set(LIBUNWIND_ENABLED TRUE)
-    set(LIBUNWIND_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/external/libunwind-ndk/include/")
-    set(LIBUNWIND_LIBRARIES "unwind")
-endif()
-
 find_package(libbacktrace)
 
 if(NOT LIBBACKTRACE_FOUND AND LIBBACKTRACE_ENABLED)

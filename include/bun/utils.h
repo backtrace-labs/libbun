@@ -48,6 +48,13 @@ pid_t bun_gettid();
  */
 bool bun_unwind_demangle(char *dest, size_t dest_size, const char *src);
 
+/*
+ * This function waits for the pid to become signalled.
+ *
+ * Returns a negative number on failure and 0 on success.
+ */
+int bun_waitpid(pid_t pid, int msec_timeout);
+
 #ifdef __cplusplus
 }
 #endif

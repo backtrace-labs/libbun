@@ -243,7 +243,6 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 	    bun_buffer_payload(buffer));
 	bun_writer_t writer;
 	int ptrace_result;
-	int waitpid_status;
 
 	bun_writer_init(&writer, buffer, BUN_ARCH_DETECTED, handle);
 
@@ -255,10 +254,8 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 		return 0;
 	}
 
-	int waitpid_result = waitpid(pid, &waitpid_status, 0);
 
-	if (!WIFSTOPPED(waitpid_status)) {
-		ptrace(PTRACE_DETACH, pid, 0, 0);
+	if (bun_waitpid(pid, 5000) < 0) {
 		return 0;
 	}
 

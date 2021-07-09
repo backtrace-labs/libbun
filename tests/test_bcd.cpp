@@ -62,10 +62,6 @@ buffer_create(void)
 	buffer_fd = fd;
 
 	r = buffer_reader(buffer_fd, PROT_READ);
-
-	fprintf(stderr, "%ju: Returned pointer: %p (buffer_child = %p)\n",
-		(uintmax_t)getpid(), r, buffer_child);
-
 	return r;
 }
 
@@ -86,8 +82,6 @@ static void
 monitor_init(void)
 {
 
-	fprintf(stderr, "Child is %ju\n", (uintmax_t)getpid());
-
 	if (prctl(PR_SET_PTRACER, PR_SET_PTRACER_ANY, 0, 0, 0) == -1)
 		perror("prctl");
 
@@ -100,8 +94,6 @@ monitor_init(void)
 		abort();
 
 	sprintf(buffer_child, "Empty contents.");
-	fprintf(stderr, "%ju: Returned pointer: %p (buffer_child = %p)\n",
-		(uintmax_t)getpid(), buffer_child, buffer_child);
 	return;
 }
 
@@ -137,12 +129,10 @@ struct bcd_config cf;
 
 	/* Generate a backtrace. This is executed synchronously. */
 	bcd_emit(&bcd, "1");
-	printf("%ju: Buffer contents: %s\n", (uintmax_t)getpid(), buffer);
 
 	sleep(2);
 
 	/* Execute another. */
 	bcd_emit(&bcd, "2");
-	printf("%ju: Buffer contents: %s\n", (uintmax_t)getpid(), buffer);
 	SUCCEED();
 }

@@ -1,6 +1,3 @@
 [submodule "external/libunwindstack-ndk"]
 	path = external/libunwindstack-ndk
 	url = https://github.com/backtrace-labs/libunwindstack-ndk.git
-[submodule "external/libunwind-ndk"]
-	path = external/libunwind-ndk
-	url = https://github.com/KrzaQ/libunwind-ndk.git

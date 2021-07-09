@@ -10,11 +10,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include <errno.h>
 #include <fcntl.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #endif
 
 #if defined(BUN_MEMFD_CREATE_AVAILABLE)
@@ -98,4 +100,46 @@ bun_gettid()
 #else
 	return gettid();
 #endif
+}
+
+int
+bun_waitpid(pid_t pid, int msec_timeout)
+{
+	struct timespec begin;
+
+	clock_gettime(CLOCK_MONOTONIC, &begin);
+	for (;;) {
+		struct timespec end;
+		pid_t waitpid_result;
+		int status;
+
+		waitpid_result = waitpid(pid, &status, WNOHANG);
+		if (waitpid_result != pid) {
+			if (waitpid_result == 0 || errno == EINTR ||
+			    errno == ECHILD || errno == EAGAIN) {
+				long diff_ms;
+
+				clock_gettime(CLOCK_MONOTONIC, &end);
+
+				diff_ms = (end.tv_sec - begin.tv_sec) * 1000 +
+				    (end.tv_nsec - begin.tv_nsec) / 1000000;
+
+				if (diff_ms < msec_timeout)
+					continue;
+			}
+			return -1;
+		}
+
+		/* The child has already terminated. */
+		if (WIFEXITED(status) || WIFSIGNALED(status)) {
+			return -1;
+		}
+
+		/* Unexpected status. */
+		if (WIFSTOPPED(status) == false) {
+			return -1;
+		}
+
+		return 0;
+	}
 }
