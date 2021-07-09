@@ -21,6 +21,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include <signal.h>
 #include <stdbool.h>
 
 #include <sys/types.h>
@@ -54,6 +55,34 @@ bool bun_unwind_demangle(char *dest, size_t dest_size, const char *src);
  * Returns a negative number on failure and 0 on success.
  */
 int bun_waitpid(pid_t pid, int msec_timeout);
+
+/*
+ * This is the definition of signal a handler function. It is congruent with
+ * the extended signal handler used by sigaction(2) with SA_SIGINFO flag.
+ *
+ * The last parameter is ucontext_t *, but is kept as void * for consistency
+ * with the above definition.
+ */
+typedef void (bun_signal_handler_fn)(int, siginfo_t *, void *);
+
+/*
+ * Registers the passed signal handler using sigaction(2) with the SA_SIGINFO
+ * flag. The following signals are handled:
+ * - SIGABRT
+ * - SIGBUS
+ * - SIGSEGV
+ * - SIGILL
+ * - SIGSYS
+ * - SIGTRAP
+ *
+ * The old handlers are not preserved, if the user wants to save them, it's
+ * their responsibility.
+ *
+ * Returns true upon succes.
+ * Returns false upon failure. The signal handlers may have been partially
+ * changed.
+ */
+bool bun_register_signal_handler(bun_signal_handler_fn *handler);
 
 #ifdef __cplusplus
 }

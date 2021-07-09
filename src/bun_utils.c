@@ -143,3 +143,22 @@ bun_waitpid(pid_t pid, int msec_timeout)
 		return 0;
 	}
 }
+
+bool
+bun_register_signal_handler(bun_signal_handler_fn *handler)
+{
+	const int signals[] = {
+	    SIGABRT, SIGBUS, SIGSEGV, SIGILL, SIGSYS, SIGTRAP
+	};
+	struct sigaction action;
+
+	memset(&action, 0, sizeof(action));
+	action.sa_sigaction = handler;
+	action.sa_flags = SA_SIGINFO;
+	for (size_t i = 0; i < sizeof(signals)/sizeof(*signals); i++) {
+		if (sigaction(signals[i], &action, NULL) != 0)
+			return false;
+	}
+
+	return true;
+}
