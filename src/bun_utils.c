@@ -105,7 +105,7 @@ bun_gettid()
 #endif
 }
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__arm__)
 static bool
 getregs_success(pid_t pid)
 {
