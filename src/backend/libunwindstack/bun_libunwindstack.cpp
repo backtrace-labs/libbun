@@ -236,6 +236,8 @@ struct bun_buffer *buffer)
 	return hdr->size;
 }
 
+#include <android/log.h>
+#define WAITPID_LOOP 1
 size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 	struct bun_buffer *buffer, pid_t pid)
 {
@@ -254,32 +256,61 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 		return 0;
 	}
 
+	int waitpid_status;
+    waitpid(pid, &waitpid_status, 0);
+    if (!WIFSTOPPED(waitpid_status)) {
+        return 0;
+    }
 
-	if (bun_waitpid(pid, 5000) < 0) {
-		return 0;
-	}
+   // int result = bun_waitpid(pid, 5000);
+   // result = bun_waitpid(pid, 5000);
 
-	std::unique_ptr<unwindstack::Regs> registers;
+    /* Wait to ensure that we observe ptrace stop state. */
+    usleep(50000);
+//    sleep(5);
+
+    sched_yield();
+
+    std::unique_ptr<unwindstack::Regs> registers;
 	unwindstack::RemoteMaps remote_maps(pid);
 
-	if (remote_maps.Parse() == false) {
+    usleep(50000);
+
+
+    if (remote_maps.Parse() == false) {
 		ptrace(PTRACE_DETACH, pid, 0, 0);
 		return 0;
 	}
 
-	registers = std::unique_ptr<unwindstack::Regs>(
+    usleep(50000);
+
+
+    registers = std::unique_ptr<unwindstack::Regs>(
 	    unwindstack::Regs::RemoteGet(pid));
+    __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "Registers %p", registers.get());
 
-	auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
+    usleep(50000);
 
-	constexpr static size_t max_frames = 512;
+
+    auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
+    __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "process_memory %p", process_memory.get());
+
+    usleep(50000);
+
+    constexpr static size_t max_frames = 512;
 	unwindstack::Unwinder unwinder{
 		max_frames, &remote_maps, registers.get(), process_memory
 	};
 
-	unwinder.Unwind();
+    usleep(50000);
 
-	for (const auto &frame : unwinder.frames()) {
+
+    unwinder.Unwind();
+
+    usleep(50000);
+
+
+    for (const auto &frame : unwinder.frames()) {
 		if (libunwindstack_write_frame(frame, *registers, &writer) == 0) {
 			ptrace(PTRACE_DETACH, pid, 0, 0);
 			return 0;

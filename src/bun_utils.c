@@ -1,6 +1,8 @@
 #define _GNU_SOURCE
 #include "bun/utils.h"
 
+#include <android/log.h>
+
 #include <unistd.h>
 #include <sys/syscall.h>
 
@@ -106,27 +108,38 @@ bun_gettid()
 }
 
 #if defined(__aarch64__) || defined(__arm__)
+#define MAX_USER_REGS_SIZE 650
+
 static bool
 getregs_success(pid_t pid)
 {
-	struct iovec io;
-	int r;
+    uint64_t buffer[MAX_USER_REGS_SIZE / sizeof(uint64_t)];
+    struct iovec io;
+    int r;
 
-	r = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, (void*)(&io));
-	return r != -1;
+    io.iov_base = buffer;
+    io.iov_len = MAX_USER_REGS_SIZE * sizeof(uint64_t);
+
+  	r = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, &io);
+	__android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "PTRACE_GETREGS: %d", r);
+	return r;
 }
 #else
-static bool
+static int
 getregs_success(pid_t pid)
 {
 	struct user_regs_struct regs;
 	int r;
 
 	r = ptrace(PTRACE_GETREGS, pid, &regs, &regs);
-	return r != -1;
+    __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "PTRACE_GETREGS: %d", r);
+    return r;
 }
 #endif
 
+#define bt_log(X,...) __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", __VA_ARGS__)
+//#undef bt_log
+//#define bt_log(X, ...)
 int
 bun_waitpid(pid_t pid, int msec_timeout)
 {
@@ -134,208 +147,162 @@ bun_waitpid(pid_t pid, int msec_timeout)
 	struct timespec current, remaining;
 	int loop = 0;
 
-	clock_gettime(CLOCK_MONOTONIC, &begin);
-
 	for (;;) {
-		int r, sig;
-		int status, e;
-		const int flags = WNOHANG;
-		siginfo_t sinfo;
+        int r, sig;
+        int status, e;
+        const int flags = WNOHANG | WUNTRACED;
+        siginfo_t sinfo;
 
-		pid_t p = waitpid(pid, &status, flags);
-		if (p == -1) {
-			if (errno == EINTR)
-				continue;
+        pid_t p = waitpid(pid, &status, flags);
+        if (p == -1) {
+            bt_log(BT_LOG_DEBUG, "Observed -1 in waitpid: %d\n", errno);
+            if (errno == EINTR)
+                continue;
 
-			if (errno == ECHILD) {
-				// bt_log(BT_LOG_DEBUG, "Received child stop "
-				// 	"notification; retrying\n");
-				continue;
-			}
+            if (errno == ECHILD) {
+                bt_log(BT_LOG_DEBUG, "Received child stop "
+                                     "notification; retrying\n");
+                continue;
+            }
 
-			// return bt_error_set(error, "waitpid", errno);
-			return -1;
-		} else if (p != pid) {
-			// struct user_regs_struct regs;
+            return -1;
+        } else if (p != pid) {
+            bt_log(BT_LOG_DEBUG, "No matched event: %d != %ju\n", p,
+                   (uintmax_t) pid);
 
-			// bt_log(BT_LOG_DEBUG, "No matched event: %d != %ju\n", p,
-			// 	(uintmax_t)pid);
+            /* No status to report, try again. */
+            current.tv_sec = 0;
+            current.tv_nsec = 500000;
 
-			/* No status to report, try again. */
-			current.tv_sec = 0;
-			current.tv_nsec = 500000;
+            for (;;) {
+                r = nanosleep(&current, &remaining);
+                if (r != -1 || errno != EINTR)
+                    break;
 
-			for (;;) {
-				r = nanosleep(&current, &remaining);
+                current = remaining;
+            }
 
-				if (r != -1 || errno != EINTR)
-					break;
+            msec_timeout -= loop++ & 1;
+            if (msec_timeout > 0) {
+                bt_log(BT_LOG_DEBUG, "Trying again, timeout is: %d\n", msec_timeout);
+                continue;
+            }
 
-				current = remaining;
-			}
+            /*
+            * There are two reasons why we may have reached this
+            * timeout:
+            *
+            * 1) The process was already stopped when we attached
+            *    and we did not observe a state transition.
+            * 2) The process was running when we attached but it
+            *    has not yet transitioned to a stop state.  This
+            *    case is extremely unlikely unless the timeout
+            *    period was very short.
+            *
+            * In either case, we may as well try to get register
+            * values before giving up.  If the process truly is not
+            * stopped yet then this call will fail and we can
+            * indicate failure.  However, if it succeeds then we
+            * probably encountered the first case above and it is
+            * safe for us to proceed.
+            */
 
-			msec_timeout -= loop++ & 1;
-			if (msec_timeout > 0)
-				continue;
+            if (getregs_success(pid) != -1)
+                goto stopped;
 
-			/*
-			* There are two reasons why we may have reached this
-			* timeout:
-			*
-			* 1) The process was already stopped when we attached
-			*    and we did not observe a state transition.
-			* 2) The process was running when we attached but it
-			*    has not yet transitioned to a stop state.  This
-			*    case is extremely unlikely unless the timeout
-			*    period was very short.
-			*
-			* In either case, we may as well try to get register
-			* values before giving up.  If the process truly is not
-			* stopped yet then this call will fail and we can
-			* indicate failure.  However, if it succeeds then we
-			* probably encountered the first case above and it is
-			* safe for us to proceed.
-			*/
+            return -1;
+        }
 
-			if (getregs_success(pid) == true)
-				goto stopped;
+        /* The child has terminated. */
+        if (WIFEXITED(status) || WIFSIGNALED(status)) {
+            bt_log(error, "process already "
+             	"exited with code %d", WEXITSTATUS(status));
+            return -1;
+        }
 
-			// return bt_error_set(error, "timed out", ms);
-			return -1;
-		}
+        if (WIFSTOPPED(status) == false) {
+            bt_log(x, "process stopped with "
+             	"unexpected status %d", status);
+            return -1;
+        }
 
-		/* The child has terminated. */
-		if (WIFEXITED(status) || WIFSIGNALED(status)) {
-			// return bt_error_set(error, "process already "
-			// 	"exited with code", WEXITSTATUS(status));
-			return -1;
-		}
+        sig = WSTOPSIG(status);
+        bt_log(BT_LOG_DEBUG, "Process %ju stopped with signal "
+                             "%d\n", (uintmax_t) pid, sig);
 
-		if (WIFSTOPPED(status) == false) {
-			// return bt_error_set(error, "process stopped with "
-			// 	"unexpected status", status);
-			return -1;
-		}
+        /*
+         * From the Linux ptrace(2) man page:
+            * If WSTOPSIG(status) is not one of SIGSTOP, SIGTSTP,
+            * SIGTTIN, or SIGTTOU, then this can't be a group-stop.
+            * If it is one of these signals, then we must use
+            * PTRACE_GETSIGINFO.  If that fails with EINVAL then we
+            * are definitely in a group-stop.  Otherwise we are in
+            * a signal-delivery-stop.  We already know that this
+            * signal is a SIGSTOP because otherwise we would have
+            * returned above.
+            *
+            * Being in group-stop means that we are currently
+            * handling a signal sent from another source (i.e. not
+            * from our PTRACE_ATTACH), so we should store the
+            * signal for injection when detaching.
+            */
+        switch (sig) {
+            case SIGSTOP:
+            case SIGTSTP:
+            case SIGTTIN:
+            case SIGTTOU:
+                break;
+            default:
+                goto signal_stop;
+        }
 
-		sig = WSTOPSIG(status);
-		// bt_log(BT_LOG_DEBUG, "Process %ju stopped with signal "
-		// 	"%d\n", (uintmax_t)pid, sig);
+        r = ptrace(PTRACE_GETSIGINFO, pid, NULL, &sinfo);
+        if (r != -1)
+            goto signal_stop;
 
-		/*
-		* We only want to store signals from the initial attach
-		* to reinject when detaching.
-		*/
-		// if (live->flags & BT_TARGET_PROCESS_F_STOPPED)
-		// 	goto stopped;
+        e = errno;
+        bt_log(BT_LOG_DEBUG, "Failed to retrieve siginfo for "
+                             "process %ju: %s\n", (uintmax_t) pid,
+               strerror(e));
 
-		/*
-			* From the Linux ptrace(2) man page:
-			* If WSTOPSIG(status) is not one of SIGSTOP, SIGTSTP,
-			* SIGTTIN, or SIGTTOU, then this can't be a group-stop.
-			* If it is one of these signals, then we must use
-			* PTRACE_GETSIGINFO.  If that fails with EINVAL then we
-			* are definitely in a group-stop.  Otherwise we are in
-			* a signal-delivery-stop.  We already know that this
-			* signal is a SIGSTOP because otherwise we would have
-			* returned above.
-			*
-			* Being in group-stop means that we are currently
-			* handling a signal sent from another source (i.e. not
-			* from our PTRACE_ATTACH), so we should store the
-			* signal for injection when detaching.
-			*/
-		switch (sig) {
-		case SIGSTOP:
-		case SIGTSTP:
-		case SIGTTIN:
-		case SIGTTOU:
-			break;
-		default:
-			goto signal_stop;
-		}
+        switch (e) {
+        case EINVAL:
+            break;
+        case ESRCH:
+            bt_log(BT_LOG_DEBUG, "Process %ju was killed "
+                                 "from under us\n", (uintmax_t) pid);
+            return -1;
+        default:
+            bt_log(BT_LOG_DEBUG, "Failed to read signal "
+                                 "information from process %ju: %s\n",
+                   (uintmax_t) pid, strerror(e));
+            goto stopped;
+    }
 
-		r = ptrace(PTRACE_GETSIGINFO, pid, NULL, &sinfo);
-		if (r != -1)
-			goto signal_stop;
+        bt_log(BT_LOG_DEBUG, "Process %ju is in group-stop "
+                             "state; re-injecting SIGSTOP\n", (uintmax_t) pid);
 
-		e = errno;
-		// bt_log(BT_LOG_DEBUG, "Failed to retrieve siginfo for "
-		// 	"process %ju: %s\n", (uintmax_t)pid,
-		// 	bt_strerror(e));
-
-		switch (e) {
-		case EINVAL:
-			break;
-		case ESRCH:
-			// bt_log(BT_LOG_DEBUG, "Process %ju was killed "
-			// 	"from under us\n", (uintmax_t)pid);
-			return -1;
-		default:
-			// bt_log(BT_LOG_DEBUG, "Failed to read signal "
-			// 	"information from process %ju: %s\n",
-			// 	(uintmax_t)pid, bt_strerror(e));
-			goto stopped;
-		}
-
-		// bt_log(BT_LOG_DEBUG, "Process %ju is in group-stop "
-		// 	"state; re-injecting SIGSTOP\n", (uintmax_t)pid);
-
-		/*
-			* Store the observed signal so that we can re-inject it
-			* when detaching.
-			*/
-		// md->inject = sig;
-		goto stopped;
+        /*
+            * Store the observed signal so that we can re-inject it
+            * when detaching.
+            */
+        // md->inject = sig;
+        goto stopped;
 
 signal_stop:
-		/*
-		* We should still reinject any observed signal other
-		* than SIGSTOP when detaching because such a signal
-		* must have come from an external source.
-		*/
-		// if (sig != SIGSTOP)
-		// 	md->inject = sig;
+        /*
+        * We should still reinject any observed signal other
+        * than SIGSTOP when detaching because such a signal
+        * must have come from an external source.
+        */
+        // if (sig != SIGSTOP)
+        // 	md->inject = sig;
 
-		goto stopped;
-	}
+        goto stopped;
+    }
 
-
-	// for (;;) {
-	// 	struct timespec end;
-	// 	pid_t waitpid_result;
-	// 	int status;
-
-	// 	waitpid_result = waitpid(pid, &status, WNOHANG | __WALL);
-	// 	if (waitpid_result != pid) {
-	// 		if (waitpid_result == 0 || errno == EINTR ||
-	// 		    errno == ECHILD || errno == EAGAIN) {
-	// 			long diff_ms;
-
-	// 			clock_gettime(CLOCK_MONOTONIC, &end);
-
-	// 			diff_ms = (end.tv_sec - begin.tv_sec) * 1000 +
-	// 			    (end.tv_nsec - begin.tv_nsec) / 1000000;
-
-	// 			if (diff_ms < msec_timeout)
-	// 				continue;
-	// 		}
-	// 		return -1;
-	// 	}
-
-	// 	/* The child has already terminated. */
-	// 	if (WIFEXITED(status) || WIFSIGNALED(status)) {
-	// 		return -1;
-	// 	}
-
-	// 	/* Unexpected status. */
-	// 	if (WIFSTOPPED(status) == false) {
-	// 		return -1;
-	// 	}
-
-	// 	return 0;
-	// }
 stopped:
-	return 0;
+    return 0;
 }
 
 bool
