@@ -20,6 +20,7 @@
 #endif
 #include <sys/user.h>
 #include <sys/ptrace.h>
+#include <linux/elf.h>
 
 #if defined(BUN_MEMFD_CREATE_AVAILABLE)
 
@@ -104,6 +105,28 @@ bun_gettid()
 #endif
 }
 
+#if defined(__aarch64__)
+static bool
+getregs_success(pid_t pid)
+{
+	struct iovec io;
+	int r;
+
+	r = ptrace(PTRACE_GETREGSET, pid, NT_PRSTATUS, (void*)(&io));
+	return r != -1;
+}
+#else
+static bool
+getregs_success(pid_t pid)
+{
+	struct user_regs_struct regs;
+	int r;
+
+	r = ptrace(PTRACE_GETREGS, pid, &regs, &regs);
+	return r != -1;
+}
+#endif
+
 int
 bun_waitpid(pid_t pid, int msec_timeout)
 {
@@ -173,9 +196,9 @@ bun_waitpid(pid_t pid, int msec_timeout)
 			* probably encountered the first case above and it is
 			* safe for us to proceed.
 			*/
-			// r = ptrace(PTRACE_GETREGS, pid, &regs, &regs);
-			// if (r != -1)
-			// 	goto stopped;
+
+			if (getregs_success(pid) == true)
+				goto stopped;
 
 			// return bt_error_set(error, "timed out", ms);
 			return -1;
