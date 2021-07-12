@@ -17,9 +17,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#endif
 #include <sys/user.h>
 #include <sys/ptrace.h>
-#endif
 
 #if defined(BUN_MEMFD_CREATE_AVAILABLE)
 
@@ -133,7 +133,7 @@ bun_waitpid(pid_t pid, int msec_timeout)
 			// return bt_error_set(error, "waitpid", errno);
 			return -1;
 		} else if (p != pid) {
-			struct user_regs_struct regs;
+			// struct user_regs_struct regs;
 
 			// bt_log(BT_LOG_DEBUG, "No matched event: %d != %ju\n", p,
 			// 	(uintmax_t)pid);
@@ -173,9 +173,9 @@ bun_waitpid(pid_t pid, int msec_timeout)
 			* probably encountered the first case above and it is
 			* safe for us to proceed.
 			*/
-			r = ptrace(PTRACE_GETREGS, pid, &regs, &regs);
-			if (r != -1)
-				goto stopped;
+			// r = ptrace(PTRACE_GETREGS, pid, &regs, &regs);
+			// if (r != -1)
+			// 	goto stopped;
 
 			// return bt_error_set(error, "timed out", ms);
 			return -1;
