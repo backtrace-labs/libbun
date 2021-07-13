@@ -8,18 +8,20 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include "bun/stream.h"
-#include "bun/utils.h"
-
-#include "../../bun_internal.h"
-
-#include "bun_libunwindstack.h"
+#include <android/log.h>
 
 #include <unwindstack/Maps.h>
 #include <unwindstack/Memory.h>
 #include <unwindstack/Regs.h>
 #include <unwindstack/RegsGetLocal.h>
 #include <unwindstack/Unwinder.h>
+
+#include "bun/stream.h"
+#include "bun/utils.h"
+
+#include "../../bun_internal.h"
+
+#include "bun_libunwindstack.h"
 
 #ifdef __i386__
 #define BUN_DISABLE_LIBUNWINDSTACK_INTEGRATION
@@ -236,8 +238,6 @@ struct bun_buffer *buffer)
 	return hdr->size;
 }
 
-#include <android/log.h>
-#define WAITPID_LOOP 1
 size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 	struct bun_buffer *buffer, pid_t pid)
 {
@@ -257,60 +257,58 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 	}
 
 	int waitpid_status;
-    waitpid(pid, &waitpid_status, 0);
-    if (!WIFSTOPPED(waitpid_status)) {
-        return 0;
-    }
+	waitpid(pid, &waitpid_status, 0);
+	if (!WIFSTOPPED(waitpid_status)) {
+		return 0;
+	}
 
-   // int result = bun_waitpid(pid, 5000);
-   // result = bun_waitpid(pid, 5000);
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
-    /* Wait to ensure that we observe ptrace stop state. */
-    usleep(50000);
-//    sleep(5);
+	sched_yield();
 
-    sched_yield();
+	std::unique_ptr<unwindstack::Regs> registers;
+	    unwindstack::RemoteMaps remote_maps(pid);
 
-    std::unique_ptr<unwindstack::Regs> registers;
-	unwindstack::RemoteMaps remote_maps(pid);
-
-    usleep(50000);
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
 
-    if (remote_maps.Parse() == false) {
+	if (remote_maps.Parse() == false) {
 		ptrace(PTRACE_DETACH, pid, 0, 0);
 		return 0;
 	}
 
-    usleep(50000);
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
-
-    registers = std::unique_ptr<unwindstack::Regs>(
+	registers = std::unique_ptr<unwindstack::Regs>(
 	    unwindstack::Regs::RemoteGet(pid));
-    __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "Registers %p", registers.get());
+	__android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "Registers %p", registers.get());
 
-    usleep(50000);
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
+	auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
+	__android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "process_memory %p", process_memory.get());
 
-    auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
-    __android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "process_memory %p", process_memory.get());
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
-    usleep(50000);
-
-    constexpr static size_t max_frames = 512;
+	constexpr static size_t max_frames = 512;
 	unwindstack::Unwinder unwinder{
-		max_frames, &remote_maps, registers.get(), process_memory
+	    max_frames, &remote_maps, registers.get(), process_memory
 	};
 
-    usleep(50000);
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
+	unwinder.Unwind();
 
-    unwinder.Unwind();
+	/* Wait to ensure that we observe ptrace stop state. */
+	usleep(50000);
 
-    usleep(50000);
-
-
-    for (const auto &frame : unwinder.frames()) {
+	for (const auto &frame : unwinder.frames()) {
 		if (libunwindstack_write_frame(frame, *registers, &writer) == 0) {
 			ptrace(PTRACE_DETACH, pid, 0, 0);
 			return 0;
