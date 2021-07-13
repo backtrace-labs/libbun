@@ -379,16 +379,16 @@ size_t libunwindstack_unwind_context(struct bun_handle *handle,
 			adjusted_relative_pc -= unwindstack::GetPcAdjustment(relative_pc, elf, arch);
 		}
 
-		// if (elf->Step(adjusted_relative_pc, relative_pc,
-		//     map_info->elf_offset, registers.get(), process_memory.get(),
-		//     &finished) == false) {
-		// 	break;
-		// }
-
-		if (elf->Step(adjusted_relative_pc, registers.get(),
-		    process_memory.get(), &finished, &is_signal_frame) == false) {
+		if (elf->Step(adjusted_relative_pc, relative_pc,
+		    map_info->elf_offset, registers.get(), process_memory.get(),
+		    &finished) == false) {
 			break;
 		}
+
+		// if (elf->Step(adjusted_relative_pc, registers.get(),
+		//     process_memory.get(), &finished, &is_signal_frame) == false) {
+		// 	break;
+		// }
 		auto frame = unwindstack::Unwinder::BuildFrameFromPcOnly(
 			relative_pc, arch, &local_maps, jit_debug.get(),
 			process_memory, true);
