@@ -57,6 +57,14 @@ bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 }
 
 size_t
+bun_unwind_context(struct bun_handle *handle, struct bun_buffer *buffer,
+	void *context)
+{
+
+	return handle->unwind_context(handle, buffer, context);
+}
+
+size_t
 bun_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 	pid_t pid)
 {

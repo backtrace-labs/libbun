@@ -15,6 +15,7 @@
 
 #include "bun/bun.h"
 #include "bun/stream.h"
+#include "bun/utils.h"
 
 #include "bcd.h"
 
@@ -50,7 +51,7 @@ buffer_create(void)
 	void *r;
 	int fd;
 
-	fd = memfd_create("_backtrace_buffer", MFD_CLOEXEC);
+	fd = bun_memfd_create("_backtrace_buffer", MFD_CLOEXEC);
 	if (fd == -1)
 		abort();
 
@@ -93,7 +94,6 @@ monitor_init(void)
 	if (buffer_child == NULL)
 		abort();
 
-	// sprintf(buffer_child, "Empty contents (%d).", getpid());
 	pid_t child_pid = getpid();
 	memcpy(buffer_child, &child_pid, sizeof(child_pid));
 
@@ -110,10 +110,6 @@ bool FirstChanceHandler(int signum, siginfo_t *info, ucontext_t *context)
 	(void) context;
 
 	bcd_emit(&bcd, "1");
-
-	int fd = open("/tmp/dump", O_WRONLY | O_CREAT | O_TRUNC, 0644);
-	write(fd, buffer, BUFFER_SIZE);
-	close(fd);
 
 	return false;
 }

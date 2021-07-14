@@ -5,6 +5,8 @@ project(backtrace-libbun
     LANGUAGES C CXX
 )
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
+
 add_subdirectory(external/bcd)
 
 find_package(libunwind)

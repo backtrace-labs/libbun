@@ -86,6 +86,8 @@ struct bun_buffer;
  * Return value of 0 indicates an error.
  */
 typedef size_t (unwind_fn)(struct bun_handle *, struct bun_buffer *);
+typedef size_t (unwind_context_fn)(struct bun_handle *, struct bun_buffer *,
+    void *);
 typedef size_t (unwind_remote_fn)(struct bun_handle *, struct bun_buffer *,
     pid_t);
 
@@ -104,6 +106,7 @@ typedef void (handle_destructor_fn)(struct bun_handle *);
 struct bun_handle
 {
 	unwind_fn *unwind;
+	unwind_context_fn *unwind_context;
 	unwind_remote_fn *unwind_remote;
 	handle_destructor_fn *destroy;
 	void *backend_context;
@@ -146,6 +149,23 @@ void bun_handle_deinit(struct bun_handle *);
  * signal-safe unwinding).
  */
 size_t bun_unwind(struct bun_handle *handle, struct bun_buffer *buffer);
+
+/*
+ * This function unwinds from the passed context. The result is stored into the
+ * passed buffer.
+ *
+ * Parameters:
+ * - handle - libbun handle
+ * - buffer - pointer to the output buffer
+ * - context - pointer to the context
+ *
+ * Returns the number of bytes written.
+ *
+ * This function is safe to use from signal handlers (for backends that allow
+ * signal-safe unwinding).
+ */
+size_t bun_unwind_context(struct bun_handle *handle, struct bun_buffer *buffer,
+    void *context);
 
 /*
  * This function unwinds the thread passed as the `pid` argument. The result is

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <algorithm>
 #include <functional>
+#include <regex>
 #include <vector>
 #include <string>
 
@@ -79,7 +80,12 @@ TEST(libunwind_remote, unwinding) {
 	ASSERT_GT(frames.size(), 0);
 
 	auto pred = [](bun_frame const& f) {
-		return strcmp(f.symbol, "_Z10dummy_funcRKSt8functionIFvvEE") == 0;
+		std::regex test{R"(dummy_func\s*\()"};
+		const std::string name = f.symbol;
+		std::smatch result;
+		bool s = std::regex_search(name, result, test);
+		return s;
+
 	};
 	auto it = std::find_if(frames.cbegin(), frames.cend(), pred);
 	ASSERT_NE(it, frames.cend());
