@@ -8,8 +8,6 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#include <android/log.h>
-
 #include <unwindstack/Elf.h>
 #include <unwindstack/Maps.h>
 #include <unwindstack/Memory.h>
@@ -288,13 +286,11 @@ size_t libunwindstack_unwind_remote(struct bun_handle *handle,
 
 	registers = std::unique_ptr<unwindstack::Regs>(
 	    unwindstack::Regs::RemoteGet(pid));
-	__android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "Registers %p", registers.get());
 
 	/* Wait to ensure that we observe ptrace stop state. */
 	usleep(50000);
 
 	auto process_memory = unwindstack::Memory::CreateProcessMemory(pid);
-	__android_log_print(ANDROID_LOG_ERROR, "Backtrace-Android", "process_memory %p", process_memory.get());
 
 	/* Wait to ensure that we observe ptrace stop state. */
 	usleep(50000);
