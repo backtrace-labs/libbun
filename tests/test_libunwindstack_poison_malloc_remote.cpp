@@ -19,9 +19,6 @@
 
 #include "bcd.h"
 
-#define DEBUG_F(fmt, ...) fprintf(stderr, "%s:%d: %s -> " fmt "\n", __FILE__, __LINE__, #__VA_ARGS__, __VA_ARGS__);
-#define DEBUG(x) DEBUG_F("%s", x)
-
 /* Default size of buffer. */
 #define BUFFER_SIZE	65536
 
@@ -71,21 +68,16 @@ static int
 request_handler(pid_t tid)
 {
 	time_t now = time(NULL);
-	DEBUG("");
 	bun_handle handle;
-	DEBUG("");
 	bool bun_initialized = bun_handle_init(&handle,
 	    BUN_BACKEND_LIBUNWINDSTACK);
 	if (!bun_initialized) {
 		return -1;
 	}
-	DEBUG("");
 
 	bun_buffer buf = { buffer_child, BUFFER_SIZE };
-	DEBUG("");
 
 	auto written = bun_unwind_remote(&handle, &buf, tid);
-	DEBUG("");
 
 	return -1;
 }
@@ -144,7 +136,6 @@ TEST(libunwindstack_poison_malloc_remote, unwinding)
 	/* Set a function to be called by the child for setting permissions. */
 	cf.monitor_init = monitor_init;
 
-	DEBUG("");
 	if (bcd_init(&cf, &e) == -1) {
 		char buf[512];
 		sprintf(buf, "error: failed to init: %s (%s)\n",
@@ -152,7 +143,6 @@ TEST(libunwindstack_poison_malloc_remote, unwinding)
 		FAIL() << buf;
 	}
 
-	DEBUG("");
 	/* Initialize the BCD handler. */
 	if (bcd_attach(&bcd, &e) == -1)
 		FAIL();
@@ -162,11 +152,9 @@ TEST(libunwindstack_poison_malloc_remote, unwinding)
 
 	pid_t child_pid;
 	memcpy(&child_pid, buffer, sizeof(child_pid));
-	DEBUG("");
 	prctl(PR_SET_PTRACER, child_pid, 0, 0, 0);
 	prctl(PR_SET_DUMPABLE, 1);
 
-	DEBUG("");
 	raise(SIGPWR);
 	bcd_emit(&bcd, "AnyText");
 	raise(SIGPWR);

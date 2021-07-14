@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 /* for libunwind */
 #include "bun_libunwind.h"
 
@@ -8,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <dlfcn.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -23,11 +25,14 @@
 #include "../../bun_internal.h"
 #include "unwind.h"
 
-
-
 #define REGISTER_GET(cursor, frame, bun_reg, unw_reg, var)                    \
 do { if (unw_get_reg(cursor, unw_reg, &var) == 0)                             \
 	bun_frame_register_append(frame, bun_reg, var); } while (false)
+
+enum bun_unwind_signal_safety {
+	BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED,
+	BUN_UNWIND_SIGNAL_SAFETY_REQUIRED,
+};
 
 struct bun_libunwind_context {
 	unw_addr_space_t addr_space;
@@ -42,7 +47,7 @@ static size_t libunwind_unwind_remote(struct bun_handle *handle,
     struct bun_buffer *buffer, pid_t pid);
 static size_t libunwind_unwind_impl(unw_cursor_t *cursor,
     struct bun_handle *handle, struct bun_buffer *buffer, pid_t tid,
-    bool demangle);
+    enum bun_unwind_signal_safety signal_safety);
 
 /*
  * Handle destructor, calls bun_handle_deinit_internal() internally, to provide
@@ -78,7 +83,8 @@ libunwind_unwind(struct bun_handle *handle, struct bun_buffer *buffer)
 	unw_getcontext(&context);
 	unw_init_local(&cursor, &context);
 
-	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(), false);
+	return libunwind_unwind_impl(&cursor, handle, buffer, bun_gettid(),
+	    BUN_UNWIND_SIGNAL_SAFETY_REQUIRED);
 }
 
 static size_t
@@ -90,7 +96,6 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 	struct bun_libunwind_context *libunwind_context = handle->backend_context;
 	int err = 0;
 	size_t bytes_written = 0;
-	int waitpid_status;
 
 	int ptrace_ret = ptrace(PTRACE_ATTACH, tid, 0, 0);
 	if (ptrace_ret != 0) {
@@ -98,8 +103,7 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 		return 0;
 	}
 
-	waitpid(tid, &waitpid_status, 0);
-	if (!WIFSTOPPED(waitpid_status)) {
+	if (bun_waitpid(tid, 5000) < 0) {
 		goto error;
 		return 0;
 	}
@@ -111,7 +115,8 @@ libunwind_unwind_remote(struct bun_handle *handle, struct bun_buffer *buffer,
 		return 0;
 	}
 
-	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer, tid, true);
+	bytes_written = libunwind_unwind_impl(&cursor, handle, buffer, tid,
+	    BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED);
 
 	_UPT_destroy(pid_context);
 
@@ -122,9 +127,35 @@ error:
 	return 0;
 }
 
+static void
+fallback_dladdr_function_name(char *symbol, size_t buffer_size, unw_word_t ip)
+{
+	Dl_info info;
+	size_t symbol_len;
+
+	if (dladdr((void *)ip, &info) == 0)
+		goto error;
+
+	if (info.dli_sname == NULL)
+		goto error;
+
+	symbol_len = strlen(info.dli_sname);
+	if (symbol_len >= buffer_size) {
+		strncpy(symbol, info.dli_sname, buffer_size - 1);
+		symbol[buffer_size - 1] = '\0';
+	} else {
+		strcpy(symbol, info.dli_sname);
+	}
+	return;
+error:
+	strcpy(symbol, "<unknown>");
+	return;
+}
+
 static size_t
 libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
-    struct bun_buffer *buffer, pid_t tid, bool demangle)
+    struct bun_buffer *buffer, pid_t tid,
+    enum bun_unwind_signal_safety signal_safety)
 {
 	struct bun_writer writer;
 	struct bun_payload_header *hdr = bun_buffer_payload(buffer);
@@ -148,13 +179,16 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 
 		/*
 		 * Don't overwrite the symbol for UNW_ENOMEM because it returns
-		 * a partially useful name
+		 * a partially useful name.
 		 */
 		if (get_proc_name_result != 0 && get_proc_name_result != UNW_ENOMEM) {
-			strcpy(symbol, "<unknown>");
+			fallback_dladdr_function_name(symbol, sizeof(symbol), ip);
 		}
 
-		if (demangle == true) {
+		/*
+		 * Demangle the name if we're not forced to be signal-safe.
+		 */
+		if (signal_safety == BUN_UNWIND_SIGNAL_SAFETY_NOT_REQUIRED) {
 			bun_unwind_demangle(symbol, sizeof(symbol), symbol);
 		}
 
@@ -240,7 +274,6 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 			{BUN_REGISTER_AARCH64_X28, UNW_AARCH64_X28},
 			{BUN_REGISTER_AARCH64_X29, UNW_AARCH64_X29},
 			{BUN_REGISTER_AARCH64_X30, UNW_AARCH64_X30},
-			{BUN_REGISTER_AARCH64_X31, UNW_AARCH64_X31},
 			{BUN_REGISTER_AARCH64_PC, UNW_AARCH64_PC},
 			{BUN_REGISTER_AARCH64_PSTATE, UNW_AARCH64_PSTATE}
 		};
@@ -264,8 +297,7 @@ libunwind_unwind_impl(unw_cursor_t *cursor, struct bun_handle *handle,
 			{BUN_REGISTER_ARM_R12, UNW_ARM_R12},
 			{BUN_REGISTER_ARM_R13, UNW_ARM_R13},
 			{BUN_REGISTER_ARM_R14, UNW_ARM_R14},
-			{BUN_REGISTER_ARM_R15, UNW_ARM_R15},
-			{BUN_REGISTER_ARM_PSTATE, UNW_ARM_PSTATE}
+			{BUN_REGISTER_ARM_R15, UNW_ARM_R15}
 		};
 #endif
 
