@@ -3,6 +3,7 @@
 
 #include <unistd.h>
 #include <sys/syscall.h>
+#include <stdlib.h>
 
 #if defined(BUN_MEMFD_CREATE_AVAILABLE)
 #include <sys/memfd.h>
@@ -26,6 +27,8 @@
 #ifndef BUN_NO_BACKTRACE_LOG
 #ifdef __ANDROID__
 #include <android/log.h>
+#include <linux/memfd.h>
+
 #define BT_LOG_DEBUG ANDROID_LOG_DEBUG
 #define BT_LOG_ERROR ANDROID_LOG_ERROR
 #define bt_log(LOG_LEVEL, ...) __android_log_print(LOG_LEVEL, "Backtrace-Android", __VA_ARGS__)
@@ -50,17 +53,16 @@ bun_memfd_create(const char *name, unsigned int flags)
 #else
 
 static int
-open_mkstemp(const char *name, unsigned int flags)
+open_mkstemp(const char *name)
 {
 	char *filename = NULL;
 	int fd = -1;
-	(void) flags;
 
 	fd = asprintf(&filename, "%s.XXXXXX", name);
 	if (fd == -1)
 		goto error;
 
-	fd = mkstemp(filename);
+	fd = mkostemp(filename, O_CLOEXEC);
 	if (fd == -1)
 		goto error;
 
@@ -77,14 +79,14 @@ error:
 }
 
 static int
-open_real_file(const char *name, unsigned int flags)
+open_real_file(const char *name)
 {
 	int fd = -1;
 
 #if defined(O_TMPFILE)
-	fd = open(name, O_TMPFILE | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+	fd = open(name, O_TMPFILE | O_TRUNC | O_CLOEXEC | O_RDWR, S_IRUSR | S_IWUSR);
 #else
-	fd = open(name, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
+	fd = open(name, O_CREAT | O_TRUNC | O_CLOEXEC | O_RDWR, S_IRUSR | S_IWUSR);
 #endif /* defined(O_TMPFILE) */
 	if (fd < 0)
 		return -1;
@@ -96,15 +98,15 @@ open_real_file(const char *name, unsigned int flags)
 }
 
 int
-bun_memfd_create(const char *name, unsigned int flags)
+bun_memfd_create(const char *name)
 {
-	int fd = syscall(SYS_memfd_create, name, flags);
+	int fd = syscall(SYS_memfd_create, name, MFD_CLOEXEC);
 
 	if (fd == -1)
-		fd = open_mkstemp(name, flags);
+		fd = open_mkstemp(name);
 
 	if (fd == -1)
-		fd = open_real_file(name, flags);
+		fd = open_real_file(name);
 
 	return fd;
 }

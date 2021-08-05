@@ -34,7 +34,7 @@ extern "C" {
  * This function is a wrapper around memfd_create(), which might not be
  * available as a library function on some systems.
  */
-int bun_memfd_create(const char *name, unsigned int flags);
+int bun_memfd_create(const char *name);
 
 /*
  * This function returns the current thread id.
