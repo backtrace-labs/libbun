@@ -64,10 +64,16 @@ open_mkstemp(const char *name)
 
 	fd = mkostemp(filename, O_CLOEXEC);
 	if (fd == -1)
+	{
+		bt_log(BT_LOG_ERROR, "Could not create temporary file, errno %d", errno);
 		goto error;
+	}
 
 	if (unlink(filename) == -1)
+	{
+		bt_log(BT_LOG_ERROR, "Could not unlink temporary file, errno %d", errno);
 		goto error;
+	}
 
 	free(filename);
 	return fd;
@@ -89,10 +95,16 @@ open_real_file(const char *name)
 	fd = open(name, O_CREAT | O_TRUNC | O_CLOEXEC | O_RDWR, S_IRUSR | S_IWUSR);
 #endif /* defined(O_TMPFILE) */
 	if (fd < 0)
+	{
+		bt_log(BT_LOG_ERROR, "Could not open real file, errno %d", errno);
 		return -1;
+	}
 
 	if (unlink(name) == -1)
+	{
+		bt_log(BT_LOG_ERROR, "Could not unlink real file, errno %d", errno);
 		return -1;
+	}
 
 	return fd;
 }
@@ -101,6 +113,10 @@ int
 bun_memfd_create(const char *name)
 {
 	int fd = syscall(SYS_memfd_create, name, MFD_CLOEXEC);
+
+#if DEBUG_MEMFD_CREATE_SYSCALL_FAIL
+	fd = -1;
+#endif
 
 	if (fd == -1)
 		fd = open_mkstemp(name);
