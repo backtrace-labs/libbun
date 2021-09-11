@@ -39,29 +39,65 @@
 #define bt_log(...)
 #endif
 
+static const char *bun_internal_cache_dir = NULL;
+
+void
+bun_cache_dir_set(const char *path)
+{
+
+	bun_internal_cache_dir = path;
+	return;
+}
+
+const char *
+bun_cache_dir_get()
+{
+
+	return bun_internal_cache_dir;
+}
+
 #if defined(BUN_MEMFD_CREATE_AVAILABLE)
 
 int
-bun_memfd_create(const char *name, unsigned int flags)
+bun_memfd_create(const char *name)
 {
 
-	return memfd_create(name, flags);
+	return memfd_create(name, 0);
 }
 #else
 
+static const char *
+tmp_path()
+{
+
+	if (bun_cache_dir_get() != NULL) {
+		return bun_cache_dir_get();
+	} else {
+#ifdef __ANDROID__
+		return "/data/local/tmp";
+#else
+		return "/tmp";
+#endif
+	}
+}
+
 static int
-open_mkstemp(const char *name, unsigned int flags)
+open_mkstemp(const char *name)
 {
 	char *filename = NULL;
 	int fd = -1;
-	(void) flags;
 
-	fd = asprintf(&filename, "%s.XXXXXX", name);
+	fd = asprintf(&filename, "%s/%s.XXXXXX", tmp_path(), name);
 	if (fd == -1)
 		goto error;
 
+	// Android NDK does not support mkostemp prior to SDK version 23
 	fd = mkstemp(filename);
+
 	if (fd == -1)
+		goto error;
+
+	if (fcntl(fd, F_SETFD, O_CLOEXEC) == -1)
 		goto error;
 
 	if (unlink(filename) == -1)
@@ -70,6 +106,9 @@ open_mkstemp(const char *name, unsigned int flags)
 	free(filename);
 	return fd;
 error:
+
+	bt_log(ANDROID_LOG_DEBUG, "open_mkstemp() failed. errno: %d (%s)",
+	    errno, strerror(errno));
 	if (fd != -1)
 		close(fd);
 	free(filename);
@@ -77,34 +116,54 @@ error:
 }
 
 static int
-open_real_file(const char *name, unsigned int flags)
+open_real_file(const char *name)
 {
+	char *final_name = NULL;
 	int fd = -1;
 
+	if (asprintf(&final_name, "%s/", bun_cache_dir_get()) == -1)
+		goto error;
+
 #if defined(O_TMPFILE)
-	fd = open(name, O_TMPFILE | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-#else
-	fd = open(name, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR);
-#endif /* defined(O_TMPFILE) */
+	fd = open(final_name, O_TMPFILE | O_CLOEXEC | O_RDWR,
+	    S_IRUSR | S_IWUSR);
 	if (fd < 0)
-		return -1;
+		goto error;
+#else
+	fd = open(final_name, O_CREAT | O_CLOEXEC | O_TRUNC | O_RDWR,
+	    S_IRUSR | S_IWUSR);
+	if (fd < 0)
+		goto error;
+	if (unlink(final_name) == -1)
+		goto error;
+#endif /* defined(O_TMPFILE) */
 
-	if (unlink(name) == -1)
-		return -1;
-
+	free(final_name);
 	return fd;
+error:
+
+	bt_log(ANDROID_LOG_DEBUG, "open_real_file() failed. errno: %d (%s)",
+	    errno, strerror(errno));
+	if (fd != -1)
+		close(fd);
+	free(final_name);
+	return -1;
 }
 
 int
-bun_memfd_create(const char *name, unsigned int flags)
+bun_memfd_create(const char *name)
 {
-	int fd = syscall(SYS_memfd_create, name, flags);
+#if defined(SYS_memfd_create)
+	int fd = syscall(SYS_memfd_create, name, 0);
+#else
+	int fd = -1;
+#endif
 
 	if (fd == -1)
-		fd = open_mkstemp(name, flags);
+		fd = open_mkstemp(name);
 
 	if (fd == -1)
-		fd = open_real_file(name, flags);
+		fd = open_real_file(name);
 
 	return fd;
 }

@@ -34,12 +34,30 @@ extern "C" {
  * This function is a wrapper around memfd_create(), which might not be
  * available as a library function on some systems.
  */
-int bun_memfd_create(const char *name, unsigned int flags);
+int bun_memfd_create(const char *name);
 
 /*
  * This function returns the current thread id.
  */
 pid_t bun_gettid();
+
+/*
+ * This function sets internal override of the cache directory (e.g. /tmp) to
+ * one specified by the user.
+ *
+ * The function does not take over the ownership of the passed memory.
+ *
+ * It is required that the pointer is either NULL or points to memory that will
+ * be valid until the next call to bun_cache_dir_set.
+ */
+void bun_cache_dir_set(const char *path);
+
+/*
+ * This function retrieves the stored pointer to cache directory override.
+ *
+ * Retruns NULL if none is set.
+ */
+const char *bun_cache_dir_get();
 
 /*
  * This function performs demangling of C++ symbol names. The destination buffer

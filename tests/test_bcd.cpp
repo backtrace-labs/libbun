@@ -52,7 +52,7 @@ buffer_create(void)
 	void *r;
 	int fd;
 
-	fd = bun_memfd_create("_backtrace_buffer", MFD_CLOEXEC);
+	fd = bun_memfd_create("_backtrace_buffer");
 	if (fd == -1)
 		abort();
 
