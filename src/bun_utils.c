@@ -127,16 +127,17 @@ open_real_file(const char *name)
 #if defined(O_TMPFILE)
 	fd = open(final_name, O_TMPFILE | O_CLOEXEC | O_RDWR,
 	    S_IRUSR | S_IWUSR);
-	if (fd < 0)
-		goto error;
-#else
-	fd = open(final_name, O_CREAT | O_CLOEXEC | O_TRUNC | O_RDWR,
-	    S_IRUSR | S_IWUSR);
-	if (fd < 0)
-		goto error;
-	if (unlink(final_name) == -1)
-		goto error;
 #endif /* defined(O_TMPFILE) */
+
+	/* If O_TMPFILE not defined, or defined, but failing. */
+	if (fd < 0) {
+		fd = open(final_name, O_CREAT | O_CLOEXEC | O_TRUNC | O_RDWR,
+		    S_IRUSR | S_IWUSR);
+		if (fd < 0)
+			goto error;
+		if (unlink(final_name) == -1)
+			goto error;
+	}
 
 	free(final_name);
 	return fd;
