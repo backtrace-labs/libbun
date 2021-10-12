@@ -200,6 +200,7 @@ struct bun_writer_reader_base {
 	char *cursor;
 	size_t size;
 	struct bun_handle *handle;
+	bool overflow;
 };
 
 struct bun_writer {

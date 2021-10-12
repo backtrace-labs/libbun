@@ -20,10 +20,12 @@
 #define BUN_HEADER_MAGIC 0xaee9eb7a786a6145ull
 #define REGISTER_SIZE (sizeof(uint16_t) + sizeof(uint64_t))
 
+static bool is_safe_access(const struct bun_writer_reader_base *, size_t bytes);
 static uint16_t read_le_16(struct bun_reader *src);
 static void write_le_16(struct bun_writer *dest, uint16_t value);
 static uint64_t read_le_64(struct bun_reader *src);
 static void write_le_64(struct bun_writer *dest, uint64_t value);
+static ssize_t safe_strlen(struct bun_reader *src);
 
 #define CONCAT(a, b) CONCAT_INNER(a, b)
 #define CONCAT_INNER(a, b) a ## b
@@ -109,6 +111,7 @@ bun_writer_init(struct bun_writer *writer, struct bun_buffer *buffer,
 	    sizeof(struct bun_payload_header);
 	writer->data.size = bun_buffer_payload_size(buffer);
 	writer->data.handle = handle;
+	writer->data.overflow = false;
 
 	hdr->magic = BUN_HEADER_MAGIC;
 	hdr->version = 1;
@@ -137,6 +140,7 @@ bun_reader_init(struct bun_reader *reader, struct bun_buffer *buffer,
 	    sizeof(struct bun_payload_header);
 	reader->data.size = bun_buffer_payload_size(buffer);
 	reader->data.handle = handle;
+	reader->data.overflow = false;
 
 	return true;
 }
@@ -197,8 +201,10 @@ bool
 bun_frame_read(struct bun_reader *reader, struct bun_frame *frame)
 {
 	struct bun_payload_header *header = (void *)reader->data.buffer;
+	char *const initial_cursor_value = reader->data.cursor;
 	const size_t offset = reader->data.cursor - reader->data.buffer;
 	ptrdiff_t buffer_available = header->size - offset;
+	ssize_t length = -1;
 	(void) header;
 
 	if (reader->data.size - offset <= 0)
@@ -210,14 +216,30 @@ bun_frame_read(struct bun_reader *reader, struct bun_frame *frame)
 	frame->addr = read_le_64(reader);
 	frame->line_no = read_le_64(reader);
 	frame->offset = read_le_64(reader);
+	if (reader->data.overflow == true)
+		goto error;
 
+	length = safe_strlen(reader);
+	if (reader->data.overflow == true)
+		goto error;
 	frame->symbol = reader->data.cursor;
-	reader->data.cursor += strlen(frame->symbol) + 1;
+	reader->data.cursor += length + 1;
 
+	length = safe_strlen(reader);
+	if (reader->data.overflow == true)
+		goto error;
 	frame->filename = reader->data.cursor;
-	reader->data.cursor += strlen(frame->filename) + 1;
+	reader->data.cursor += length + 1;
 
 	frame->register_count = read_le_16(reader);
+	if (reader->data.overflow == true)
+		goto error;
+
+	if (is_safe_access(&reader->data, frame->register_count * REGISTER_SIZE)
+	    == false) {
+		reader->data.overflow = true;
+		goto error;
+	}
 
 	if (frame->register_count > 0) {
 		frame->register_data = (uint8_t *)reader->data.cursor;
@@ -226,6 +248,10 @@ bun_frame_read(struct bun_reader *reader, struct bun_frame *frame)
 	}
 
 	return true;
+
+error:
+	reader->data.cursor = initial_cursor_value;
+	return false;
 }
 
 void
@@ -308,10 +334,27 @@ bun_frame_register_get(struct bun_frame *frame, size_t index,
 	return true;
 }
 
+static bool
+is_safe_access(const struct bun_writer_reader_base *base, size_t bytes)
+{
+	char *const end_cursor = base->buffer + base->size;
+	size_t bytes_left = end_cursor - base->cursor;
+
+	if (base->overflow == true)
+		return false;
+
+	return bytes <= bytes_left;
+}
+
 static uint16_t
 read_le_16(struct bun_reader *src)
 {
 	uint16_t value;
+
+	if (is_safe_access(&src->data, sizeof(value)) == false) {
+		src->data.overflow = true;
+		return 0;
+	}
 
 	memcpy(&value, src->data.cursor, sizeof(value));
 	src->data.cursor += sizeof(value);
@@ -323,6 +366,12 @@ write_le_16(struct bun_writer *dest, uint16_t value)
 {
 	uint16_t le_value = htole16(value);
 
+	if (is_safe_access(&dest->data, sizeof(value)) == false) {
+		dest->data.overflow = true;
+		return;
+	}
+
+
 	memcpy(dest->data.cursor, &le_value, sizeof(le_value));
 	dest->data.cursor += sizeof(le_value);
 	return;
@@ -332,6 +381,11 @@ static uint64_t
 read_le_64(struct bun_reader *src)
 {
 	uint64_t value;
+
+	if (is_safe_access(&src->data, sizeof(value)) == false) {
+		src->data.overflow = true;
+		return 0;
+	}
 
 	memcpy(&value, src->data.cursor, sizeof(value));
 	src->data.cursor += sizeof(value);
@@ -343,9 +397,40 @@ write_le_64(struct bun_writer *dest, uint64_t value)
 {
 	uint64_t le_value = htole64(value);
 
+	if (is_safe_access(&dest->data, sizeof(value)) == false) {
+		dest->data.overflow = true;
+		return;
+	}
+
 	memcpy(dest->data.cursor, &le_value, sizeof(le_value));
 	dest->data.cursor += sizeof(le_value);
 	return;
+}
+
+
+/*
+ * Safe string length computation.
+ *
+ * Returns length of the string or -1 if the string does not end within the
+ * read buffer. In the latter case, the overflow flag is set.
+ */
+static ssize_t
+safe_strlen(struct bun_reader *src)
+{
+	char *const end_cursor = src->data.buffer + src->data.size;
+	const size_t max_length = end_cursor - src->data.cursor;
+	size_t len;
+
+	if (src->data.overflow == true)
+		return -1;
+
+	len = strnlen(src->data.cursor, max_length);
+	if (len == max_length) {
+		src->data.overflow = true;
+		return -1;
+	}
+
+	return len;
 }
 
 void
