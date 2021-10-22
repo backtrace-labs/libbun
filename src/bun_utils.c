@@ -215,7 +215,6 @@ getregs_success(pid_t pid)
 int
 bun_waitpid(pid_t pid, int msec_timeout)
 {
-	struct timespec begin;
 	struct timespec current, remaining;
 	int loop = 0;
 
