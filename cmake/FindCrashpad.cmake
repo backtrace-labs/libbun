@@ -56,11 +56,12 @@ else (CRASHPAD_OBJECTS AND CRASHPAD_INCLUDE_DIRS)
   if (CRASHPAD_FOUND)
     set(CRASHPAD_OBJECTS
       "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/base.rand_util.o"
+      "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/memory/base.page_size_posix.o"
       "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/strings/base.string_number_conversions.o"
       "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/strings/base.utf_string_conversions.o"
       "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/strings/base.utf_string_conversion_utils.o"
     )
-    set(CRASHPAD_LIBRARIES client base util compat pthread dl z)
+    set(CRASHPAD_LIBRARIES common client base util compat pthread dl z)
     set(CRASHPAD_LIBRARY_DIRECTORIES
       "${CRASHPAD_OBJECT}/obj/client"
       "${CRASHPAD_OBJECT}/obj/third_party/mini_chromium/mini_chromium/base/"
