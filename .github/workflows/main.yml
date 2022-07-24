@@ -41,9 +41,9 @@ jobs:
           #cd cbuild && ctest how to run ctest?? 
           
       - name: Tar files to preserve file permissions
-        run: tar -cvzf Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.ref_name }}.tar.gz cbuild/
+        run: tar -cvzf Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.sha }}.tar.gz cbuild/
 
       - uses: actions/upload-artifact@v3
         with:
-          name: Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.ref_name }}
-          path: Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.ref_name }}.tar.gz 
+          name: Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.sha }}
+          path: Archive_Libbun_Android_apiLevel${{ matrix.apiLevel }}_${{ matrix.abi }}_build_${{ github.sha }}.tar.gz 
